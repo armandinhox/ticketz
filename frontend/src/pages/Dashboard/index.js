@@ -519,7 +519,7 @@ const Dashboard = () => {
       <Container maxWidth="lg" className={classes.container}>
         <Grid container spacing={3} justifyContent="flex-start">
 
-          { !localStorage.getItem("hideAds") && <OnlyForSuperUser
+          {/* <OnlyForSuperUser
             user={currentUser}
             yes={() => (
               <Grid item xs={12}>
@@ -598,9 +598,9 @@ const Dashboard = () => {
                 </Paper>
               </Grid>
             )} />
-          }
 
-          { !localStorage.getItem("hideAds") && <OnlyForSuperUser
+
+          <OnlyForSuperUser
             user={currentUser}
             yes={() => (
               <Grid item xs={12}>
@@ -649,7 +649,7 @@ const Dashboard = () => {
                   }
                 </Paper>
               </Grid>
-            )} /> }
+            )} /> */}
 
           {/* USUARIOS ONLINE */}
           <InfoRingCard
