@@ -1,3 +1,6 @@
 .docker
 *~
 /.project
+docker-compose-armandinho.yaml
+.env-backend-armandinho
+.env-frontend-armandinho

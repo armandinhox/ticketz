@@ -10,8 +10,8 @@ module.exports = {
           "Users",
           [
             {
-              name: "Admin",
-              email: process.env.EMAIL_ADDRESS || "admin@ticketz.host",
+              name: "Armandinho",
+              email: process.env.EMAIL_ADDRESS || "contato@armando.com.br",
               profile: "admin",
               passwordHash,
               companyId: 1,

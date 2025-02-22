@@ -29,7 +29,7 @@ import subscriptionRoutes from "./subScriptionRoutes";
 import ticketTagRoutes from "./ticketTagRoutes";
 import pwaRoutes from "./pwaRoutes";
 import versionRoutes from "./versionRoutes";
-import ticketzOSSRoutes from "./ticketzOSSRoutes";
+//import ticketzOSSRoutes from "./ticketzOSSRoutes";
 
 const routes = Router();
 
@@ -63,6 +63,6 @@ routes.use(invoiceRoutes);
 routes.use(ticketTagRoutes);
 routes.use(pwaRoutes);
 routes.use(versionRoutes);
-routes.use(ticketzOSSRoutes);
+//routes.use(ticketzOSSRoutes);
 
 export default routes;
