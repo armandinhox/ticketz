@@ -1,19 +1,13 @@
-FROM node:20-alpine as build-deps
-
+FROM node:20.18-alpine AS builder
 WORKDIR /usr/src/app
+COPY package*.json ./
+RUN npm ci
 COPY . .
-
-ENV NODE_OPTIONS --openssl-legacy-provider
-
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci && npm run build
-
-FROM ghcr.io/ticketz-oss/nginx-alpine
-
-WORKDIR /usr/share/nginx/html
-
-COPY --from=build-deps /usr/src/app/build /var/www/public
-COPY --from=build-deps /usr/src/app/node_modules/@socket.io/admin-ui/ui/dist /var/www/public/socket-admin
+RUN npm run build
+FROM nginx:alpine
+EXPOSE 80
+#COPY ./build /usr/share/nginx/html
+#COPY ./node_modules/@socket.io/admin-ui/ui/dist /usr/share/nginx/html/socket-admin
 COPY nginx /etc/nginx
 
 CMD (echo "{" && while IFS='=' read -r name value; do \
