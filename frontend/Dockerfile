@@ -8,7 +8,7 @@ FROM nginx:alpine
 EXPOSE 80
 #COPY ./build /usr/share/nginx/html
 #COPY ./node_modules/@socket.io/admin-ui/ui/dist /usr/share/nginx/html/socket-admin
-COPY nginx /etc/nginx
+#COPY nginx /etc/nginx
 
 CMD (echo "{" && while IFS='=' read -r name value; do \
         printf '\t"%s": "%s"\n' "$name" "$value"; \
