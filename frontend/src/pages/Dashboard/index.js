@@ -283,7 +283,7 @@ const Dashboard = () => {
       return;
     }
     
-    window.open("https://pro.ticke.tz", "_blank");
+    window.open("https://fxawk.com", "_blank");
   }
   
   useEffect(() => {
