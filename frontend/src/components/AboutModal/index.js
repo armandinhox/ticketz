@@ -86,68 +86,6 @@ const AboutModal = ({ open, onClose }) => {
 				fullWidth
 				scroll="paper"
 			>
-				<DialogTitle id="form-dialog-title">
-					{i18n.t("about.aboutthe")} {currentUser?.super ? "ticketz" : theme.appName }
-				</DialogTitle>
-				<DialogContent dividers>
-				{ currentUser?.super ? 
-          <>
-            <div>
-              <img className={classes.ticketzLogoImg} />
-            </div>
-            <Typography variant="body1" gutterBottom><b>Frontend: 
-              { frontendGitInfo.tagName && `Version: ${frontendGitInfo.tagName} Build info: ${frontendGitInfo.buildTimestamp}` }
-              { !frontendGitInfo.tagName &&
-                <>
-                  {frontendGitInfo.commitHash && `Commit: {frontendGitInfo.commitHash} `}
-                  {frontendGitInfo.branchName && `Branch: {frontendGitInfo.branchName} `}
-                  {frontendGitInfo.commitTimestamp && `Time: {frontendGitInfo.commitTimestamp} `}
-                </>
-              }
-            </b>
-            {backendGitInfo &&
-            <>
-            <br /><b>Backend: 
-              { backendGitInfo.tagName && `Version: ${backendGitInfo.tagName} Build info: ${backendGitInfo.buildTimestamp}` }
-              { !backendGitInfo.tagName &&
-                <>
-                  {backendGitInfo.commitHash && `Commit: {backendGitInfo.commitHash} `}
-                  {backendGitInfo.branchName && `Branch: {backendGitInfo.branchName} `}
-                  {backendGitInfo.commitTimestamp && `Time: {backendGitInfo.commitTimestamp} `}
-                </>
-              }
-            </b>
-            </>
-            }
-            </Typography>
-            <Typography variant="body1">{i18n.t("about.aboutdetail")}</Typography>
-            <Typography><Link target="_blank" href="https://todobom.com">{i18n.t("about.aboutauthorsite")}</Link></Typography>
-            <Typography><Link target="_blank" href="https://github.com/canove/whaticket-community">{i18n.t("about.aboutwhaticketsite")}</Link></Typography>
-            <Typography><Link target="_blank" href="https://github.com/vemfazer">{i18n.t("about.aboutvemfazersite")}</Link></Typography>
-            <Typography variant="h4">{i18n.t("about.licenseheading")}</Typography>
-            <Typography variant="body1">{i18n.t("about.licensedetail")}</Typography>
-            <Typography><Link target="_blank" href="https://github.com/ticketz-oss/ticketz/blob/main/LICENSE.md">{i18n.t("about.licensefulltext")}</Link></Typography>
-            <Typography><Link target="_blank" href="https://github.com/ticketz-oss/ticketz">{i18n.t("about.licensesourcecode")}</Link></Typography>
-          </>
-          :
-          <>
-            <div>
-              <img className={classes.logoImg} />
-            </div>
-            <Typography className={classes.textCenter} ><Link target="_blank" href="https://ticke.tz">{i18n.t("about.copyright")}</Link></Typography>
-          </>
-        }
-				</DialogContent>
-				<DialogActions>
-					<Button
-						onClick={handleClose}
-            type="submit"
-            color="primary"
-            variant="contained"
-					>
-						{i18n.t("about.buttonclose")}
-					</Button>
-				</DialogActions>
 			</Dialog>
 		</div>
 	);

@@ -184,7 +184,7 @@ const App = () => {
     getPublicSetting("appLogoFavicon")
       .then((file) => { setAppLogoFavicon(file ? (`${getBackendURL()}/public/${file}`) : null) })
       .catch((error) => { console.log("Error reading setting", error); });
-    getPublicSetting("appName").then((name) => { setAppName(name || "ticketz") })
+    getPublicSetting("appName").then((name) => { setAppName(name || "chatfx") })
       .catch((error) => { console.log("Error reading setting", error); setAppName("whitelabel chat") });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
