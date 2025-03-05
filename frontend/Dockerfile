@@ -5,6 +5,7 @@ RUN npm ci
 RUN npm run build
 
 FROM nginx:alpine
+WORKDIR /usr/share/nginx/html/
 RUN apk update
 RUN apk add dumb-init nodejs npm
 COPY --from=build-deps /usr/src/app/build /usr/share/nginx/html
