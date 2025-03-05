@@ -1,0 +1,13 @@
+{
+	"HOSTNAME": "fed71341e626",
+	"SHLVL": "1",
+	"HOME": "/root",
+	"BACKEND_HOST": "api-chat.fxawk.com",
+	"PKG_RELEASE": "1",
+	"DYNPKG_RELEASE": "1",
+	"NGINX_VERSION": "1.27.4",
+	"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	"NJS_VERSION": "0.8.9",
+	"NJS_RELEASE": "1",
+	"PWD": "/usr/share/nginx/html"
+}
