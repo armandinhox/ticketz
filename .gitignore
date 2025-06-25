@@ -6,3 +6,4 @@ docker-compose-armandinho.yaml
 .env-frontend-armandinho
 .DS_Store
 *_data
+backend_p*
