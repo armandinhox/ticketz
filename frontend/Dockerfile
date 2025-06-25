@@ -19,7 +19,7 @@ EXPOSE 80
 
 CMD (echo "{" && while IFS='=' read -r name value; do \
         printf '\t"%s": "%s"\n' "$name" "$value"; \
-    done < <(env) | sed '$!s/$/,/' && echo "}")  > /var/www/public/config.json \
+    done < <(env) | sed '$!s/$/,/' && echo "}")  > /usr/share/nginx/html/config.json \
     && if [ -n "$BACKEND_SERVICE" ]; then \
         BACKEND_IP=$(getent hosts $BACKEND_SERVICE | awk '{ print $1 }') \
         && echo "$BACKEND_IP backend" >> /etc/hosts; \
