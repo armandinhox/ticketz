@@ -3,7 +3,7 @@ FROM node:20 AS build
 WORKDIR /usr/src/app
 COPY . .
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci && npm run build
+    npm ci && npm run generate:i18nkeys && npm run build
 
 FROM node:20
 WORKDIR /usr/src/app

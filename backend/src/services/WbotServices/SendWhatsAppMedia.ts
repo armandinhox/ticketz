@@ -1,5 +1,4 @@
 import { WAMessage, AnyMediaMessageContent, AnyMessageContent } from "baileys";
-import * as Sentry from "@sentry/node";
 import fs from "fs";
 import { exec } from "child_process";
 import path from "path";
@@ -14,6 +13,8 @@ import { verifyMediaMessage, verifyMessage } from "./wbotMessageListener";
 import CheckSettings from "../../helpers/CheckSettings";
 import saveMediaToFile from "../../helpers/saveMediaFile";
 import { getJidOf } from "./getJidOf";
+import { logger } from "../../utils/logger";
+import { URLCharEncoder } from "../../helpers/URLCharEncoder";
 
 interface Request {
   media: Express.Multer.File;
@@ -21,6 +22,12 @@ interface Request {
   caption?: string;
   ptt?: boolean;
 }
+
+export type MediaInfo = {
+  mediaUrl: string;
+  mimetype: string;
+  filename: string;
+};
 
 const publicFolder = __dirname.endsWith("/dist")
   ? path.resolve(__dirname, "..", "public")
@@ -49,18 +56,22 @@ export const getMessageFileOptions = async (
 ): Promise<AnyMediaMessageContent> => {
   mimetype = mimetype || mime.lookup(pathMedia) || "application/octet-stream";
 
+  const url = pathMedia.match(/^https?:\/\//) && {
+    url: pathMedia
+  };
+
   try {
     let options: AnyMediaMessageContent;
 
     if (mimetype.startsWith("video/")) {
       options = {
         fileName,
-        video: { stream: fs.createReadStream(pathMedia) }
+        video: url || { stream: fs.createReadStream(pathMedia) }
       };
     } else if (mimetype === "audio/ogg") {
       options = {
         fileName,
-        audio: { stream: fs.createReadStream(pathMedia) },
+        audio: url || { stream: fs.createReadStream(pathMedia) },
         mimetype: "audio/ogg; codecs=opus",
         ptt: true
       };
@@ -68,37 +79,40 @@ export const getMessageFileOptions = async (
       const needConvert = fileName.includes("audio-record-site");
       options = {
         fileName,
-        audio: {
+        audio: url || {
           stream: needConvert
             ? await processRecordedAudio(pathMedia)
             : fs.createReadStream(pathMedia)
         },
-        mimetype: needConvert ? "audio/ogg; codecs=opus" : mimetype,
-        ptt: needConvert || !!ptt
+        mimetype: !url && needConvert ? "audio/ogg; codecs=opus" : mimetype,
+        ptt: (!url && needConvert) || !!ptt
       };
     } else if (supportedImages.includes(mimetype)) {
       options = {
         fileName,
-        image: { stream: fs.createReadStream(pathMedia) }
+        image: url || { stream: fs.createReadStream(pathMedia) }
       };
     } else {
       options = {
         fileName,
-        document: { stream: fs.createReadStream(pathMedia) },
+        document: url || { stream: fs.createReadStream(pathMedia) },
         mimetype
       };
     }
 
     return options;
-  } catch (e) {
-    Sentry.captureException(e);
-    console.log(e);
+  } catch (error) {
+    logger.error(
+      { message: error.message },
+      "Error getting message file options"
+    );
     return null;
   }
 };
 
 export const sendWhatsappFile = async (
   ticket: Ticket,
+  mediaInfo: MediaInfo,
   options: AnyMediaMessageContent
 ): Promise<WAMessage> => {
   try {
@@ -106,12 +120,19 @@ export const sendWhatsappFile = async (
 
     const sentMessage = await wbot.sendMessage(getJidOf(ticket), options);
 
-    await verifyMediaMessage(sentMessage, ticket, ticket.contact);
+    await verifyMediaMessage(
+      sentMessage,
+      ticket,
+      ticket.contact,
+      null,
+      null,
+      null,
+      mediaInfo
+    );
 
     return sentMessage;
-  } catch (err) {
-    Sentry.captureException(err);
-    console.log(err);
+  } catch (error) {
+    logger.error({ message: error.message }, "Error sending WhatsApp message");
     throw new AppError("ERR_SENDING_WAPP_MSG");
   }
 };
@@ -130,9 +151,8 @@ export const SendWhatsAppMessage = async (
     await verifyMessage(sentMessage, ticket, ticket.contact);
 
     return sentMessage;
-  } catch (err) {
-    Sentry.captureException(err);
-    console.log(err);
+  } catch (error) {
+    logger.error({ message: error.message }, "Error sending WhatsApp message");
     throw new AppError("ERR_SENDING_WAPP_MSG");
   }
 };
@@ -153,31 +173,38 @@ export const SendWhatsAppMedia = async ({
         "utf8"
       );
     } catch (error) {
-      console.error("Error converting filename to UTF-8:", error);
+      logger.error(
+        { message: error.message },
+        "Error converting filename to UTF-8:"
+      );
     }
 
     const fileLimit = parseInt(await CheckSettings("uploadLimit", "15"), 10);
 
+    // convert multer file to Readable
+    const readableFile = fs.createReadStream(pathMedia);
+    const savedPath = await saveMediaToFile(
+      {
+        data: readableFile,
+        mimetype: media.mimetype,
+        filename: fileName || media.originalname
+      },
+      ticket
+    );
+    readableFile.destroy();
+
+    const mediaInfo = {
+      mediaUrl: savedPath,
+      mimetype: media.mimetype,
+      filename: fileName || media.originalname
+    };
+
     if (media.size > fileLimit * 1024 * 1024) {
-      // convert multer file to Readable
-      const readableFile = fs.createReadStream(pathMedia);
-      let fileUrl = encodeURI(
-        await saveMediaToFile(
-          {
-            data: readableFile,
-            mimetype: media.mimetype,
-            filename: media.originalname
-          },
-          ticket.companyId,
-          ticket.id
-        )
-      );
-      if (!fileUrl.startsWith("http")) {
-        fileUrl = `${process.env.BACKEND_URL}/public/${fileUrl}`;
-      }
-      readableFile.close();
+      const fileUrl = savedPath.startsWith("http")
+        ? savedPath
+        : `${process.env.BACKEND_URL}/public/${savedPath}`;
       return SendWhatsAppMessage(ticket, {
-        text: `📎 *${fileName}*\n\n🔗 ${fileUrl}`
+        text: `📎 *${fileName}*\n\n🔗 ${URLCharEncoder(fileUrl)}`
       });
     }
 
@@ -187,14 +214,13 @@ export const SendWhatsAppMedia = async ({
       media.mimetype,
       ptt
     );
-    return sendWhatsappFile(ticket, {
+    return sendWhatsappFile(ticket, mediaInfo, {
       caption: caption || undefined,
       fileName,
       ...options
     } as AnyMediaMessageContent);
-  } catch (err) {
-    Sentry.captureException(err);
-    console.log(err);
+  } catch (error) {
+    logger.error({ message: error.message }, "Error sending WhatsApp media");
     throw new AppError("ERR_SENDING_WAPP_MSG");
   }
 };

@@ -17,6 +17,7 @@ const messages = {
         name: "Name",
         email: "Email",
         phone: "Phone",
+        language: "Language",
         company: "Company",
         user: "User",
         connection: "Connection",
@@ -736,7 +737,8 @@ const messages = {
         table: {
           name: "Name",
           color: "Color",
-          tickets: "Records",
+          tickets: "Tickets",
+          contacts: "Contacts",
           actions: "Actions",
           id: "Id",
           kanban: "Kanban",

@@ -776,7 +776,7 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
               color="primary"
               variant="outlined"
               target="_blank"
-              href={message.mediaUrl.replace(/%/g, '%25')}
+              href={message.mediaUrl}
             >
              { document?.fileName || message.body}
             </Button>

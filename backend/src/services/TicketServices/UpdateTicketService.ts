@@ -15,6 +15,8 @@ import formatBody from "../../helpers/Mustache";
 import { logger } from "../../utils/logger";
 import { incrementCounter } from "../CounterServices/IncrementCounter";
 import { getJidOf } from "../WbotServices/getJidOf";
+import Queue from "../../models/Queue";
+import { _t } from "../TranslationServices/i18nService";
 
 export interface UpdateTicketData {
   status?: string;
@@ -113,11 +115,19 @@ const UpdateTicketService = async ({
     const ticket = await ShowTicketService(ticketId, companyId);
     const isGroup = ticket.contact?.isGroup || ticket.isGroup;
 
+    if (queueId && queueId !== ticket.queueId) {
+      const newQueue = await Queue.findByPk(queueId);
+      if (!newQueue) {
+        throw new AppError("Queue not found", 404);
+      }
+      if (newQueue.companyId !== ticket.companyId) {
+        throw new AppError("Queue does not belong to the same company", 403);
+      }
+    }
+
     if (user && ticket.status !== "pending") {
       if (user.profile !== "admin" && ticket.userId !== user.id) {
-        throw new AppError(
-          "Apenas o usuário ativo do ticket ou o Admin podem fazer alterações no ticket"
-        );
+        throw new AppError("ERR_FORBIDDEN", 403);
       }
     }
 
@@ -128,7 +138,14 @@ const UpdateTicketService = async ({
     });
 
     if (ticket.channel === "whatsapp" && status === "open") {
-      SetTicketMessagesAsRead(ticket);
+      try {
+        await SetTicketMessagesAsRead(ticket);
+      } catch (err) {
+        logger.error(
+          { ticketId, message: err?.message },
+          "Could not set messages as read."
+        );
+      }
     }
 
     const oldStatus = ticket.status;
@@ -166,8 +183,10 @@ const UpdateTicketService = async ({
           if (ticket.whatsapp && ticket.channel === "whatsapp") {
             const ratingTxt =
               ticket.whatsapp.ratingMessage?.trim() ||
-              "Por favor avalie nosso atendimento";
-            const bodyRatingMessage = `${ratingTxt}\n\n*Digite uma nota de 1 a 5*\n\nEnvie *\`!\`* para retornar ao atendimento`;
+              _t("Please rate our service", ticket);
+            const rateInstructions = _t("Send a rating from 1 to 5", ticket);
+            const rateReturn = _t("Send *`!`* to return to the service", ticket);
+            const bodyRatingMessage = `${ratingTxt}\n\n*${rateInstructions}*\n\n${rateReturn}`;
 
             await SendWhatsAppMessage({ body: bodyRatingMessage, ticket });
           }
@@ -208,7 +227,8 @@ const UpdateTicketService = async ({
         !isGroup &&
         !ticket.contact.disableBot &&
         !justClose &&
-        ticket.whatsapp?.complationMessage.trim()
+        ticket.whatsapp?.complationMessage.trim() &&
+        ticket.whatsapp.status === "CONNECTED"
       ) {
         const body = formatBody(
           `${ticket.whatsapp.complationMessage.trim()}`,
@@ -253,13 +273,13 @@ const UpdateTicketService = async ({
 
     if (oldStatus !== status) {
       if (oldStatus === "closed" && status === "open") {
-        incrementCounter(companyId, "ticket-reopen");
+        await incrementCounter(companyId, "ticket-reopen");
       } else if (status === "open") {
-        incrementCounter(companyId, "ticket-accept");
+        await incrementCounter(companyId, "ticket-accept");
       } else if (status === "closed") {
-        incrementCounter(companyId, "ticket-close");
+        await incrementCounter(companyId, "ticket-close");
       } else if (status === "pending" && oldQueueId !== queueId) {
-        incrementCounter(companyId, "ticket-transfer");
+        await incrementCounter(companyId, "ticket-transfer");
       }
     }
 

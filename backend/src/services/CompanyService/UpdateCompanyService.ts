@@ -1,5 +1,7 @@
+import { Op } from "sequelize";
 import AppError from "../../errors/AppError";
 import Company from "../../models/Company";
+import Invoices from "../../models/Invoices";
 import Setting from "../../models/Setting";
 
 interface CompanyData {
@@ -12,6 +14,7 @@ interface CompanyData {
   campaignsEnabled?: boolean;
   dueDate?: string;
   recurrence?: string;
+  language?: string;
 }
 
 const UpdateCompanyService = async (
@@ -26,12 +29,15 @@ const UpdateCompanyService = async (
     planId,
     campaignsEnabled,
     dueDate,
-    recurrence
+    recurrence,
+    language
   } = companyData;
 
   if (!company) {
     throw new AppError("ERR_NO_COMPANY_FOUND", 404);
   }
+
+  const previousPlanId = company.planId;
 
   await company.update({
     name,
@@ -40,7 +46,8 @@ const UpdateCompanyService = async (
     status,
     planId,
     dueDate,
-    recurrence
+    recurrence,
+    language
   });
 
   if (companyData.campaignsEnabled !== undefined) {
@@ -58,6 +65,27 @@ const UpdateCompanyService = async (
     if (!created) {
       await setting.update({ value: `${campaignsEnabled}` });
     }
+  }
+
+  if (dueDate && new Date(dueDate) > new Date()) {
+    await Invoices.destroy({
+      where: {
+        companyId: company.id,
+        status: "open",
+        dueDate: {
+          [Op.lte]: dueDate
+        }
+      }
+    });
+  }
+
+  if (planId && previousPlanId !== planId) {
+    await Invoices.destroy({
+      where: {
+        companyId: company.id,
+        status: "open"
+      }
+    });
   }
 
   return company;

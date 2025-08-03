@@ -44,7 +44,7 @@ import { instrument } from "@socket.io/admin-ui";
 import { Server } from "http";
 import { verify } from "jsonwebtoken";
 import AppError from "../errors/AppError";
-import { logger, socketSendBuffer } from "../utils/logger";
+import { logger, setSocketIo, socketSendBuffer } from "../utils/logger";
 import User from "../models/User";
 import Queue from "../models/Queue";
 import Ticket from "../models/Ticket";
@@ -52,6 +52,9 @@ import authConfig from "../config/auth";
 import { CounterManager } from "./counter";
 import UserSocketSession from "../models/UserSocketSession";
 import { GetCompanySetting } from "../helpers/CheckSettings";
+import { DecoupledDriverServices } from "../services/DecoupledDriverServices/DecoupledDriverServices";
+
+const decoupledDriverServices = DecoupledDriverServices.getInstance();
 
 let io: SocketIO;
 
@@ -68,8 +71,8 @@ const joinTicketChannel = async (
   logger.debug(`joinChatbox[${c}]: Channel: ${ticketId} by user ${user.id}`);
 };
 
-const notifyOnlineChange = (companyId: number) => {
-  io.to("super").to(`company-${companyId}-admin`).emit("userOnlineChange");
+const notifyOnlineChange = (companyId: number, userId: number, online) => {
+  io.to("super").to(`company-${companyId}-admin`).emit("userOnlineChange", { userId, online });
 };
 
 export const initIO = (httpServer: Server): SocketIO => {
@@ -78,6 +81,8 @@ export const initIO = (httpServer: Server): SocketIO => {
       origin: process.env.FRONTEND_URL
     }
   });
+
+  setSocketIo(io);
 
   if (process.env.SOCKET_ADMIN && JSON.parse(process.env.SOCKET_ADMIN)) {
     User.findByPk(1).then(adminUser => {
@@ -136,16 +141,19 @@ export const initIO = (httpServer: Server): SocketIO => {
       active: true
     }).then(_ => {
       logger.debug(`started session ${socket.id} for user ${userId}`);
-      notifyOnlineChange(user.companyId);
+      notifyOnlineChange(user.companyId, user.id, true);
     });
 
     socket.on("disconnect", async () => {
       UserSocketSession.update(
         { active: false },
         { where: { id: socket.id } }
-      ).then(() => {
+      ).then(async () => {
         logger.debug(`finished session ${socket.id} for user ${userId}`);
-        notifyOnlineChange(user.companyId);
+        const activeSessionsCount = await UserSocketSession.count({
+          where: { userId, active: true }
+        });
+        notifyOnlineChange(user.companyId, user.id, activeSessionsCount > 0);
       });
     });
 
@@ -335,6 +343,14 @@ export const initIO = (httpServer: Server): SocketIO => {
             socket.leave(`queue-${queue.id}-pending`);
           });
         }
+      }
+    });
+
+    socket.on("presenceUpdate", async parameters => {
+      const df = decoupledDriverServices.getFunction("presenceUpdate");
+
+      if (df) {
+        df(user, parameters);
       }
     });
 

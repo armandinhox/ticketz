@@ -1,6 +1,4 @@
-import path, { join } from "path";
-import { promisify } from "util";
-import fs, { writeFile } from "fs";
+import path from "path";
 import * as Sentry from "@sentry/node";
 import { isNil, head, keys } from "lodash";
 
@@ -50,7 +48,7 @@ import { campaignQueue } from "../../queues/campaign";
 import User from "../../models/User";
 import Setting from "../../models/Setting";
 import { debounce } from "../../helpers/Debounce";
-import { getMessageFileOptions } from "./SendWhatsAppMedia";
+import { getMessageFileOptions, MediaInfo } from "./SendWhatsAppMedia";
 import { makeRandomId } from "../../helpers/MakeRandomId";
 import CheckSettings, { GetCompanySetting } from "../../helpers/CheckSettings";
 import Whatsapp from "../../models/Whatsapp";
@@ -64,6 +62,8 @@ import { randomValue } from "../../helpers/randomValue";
 import { getJidOf } from "./getJidOf";
 import { verifyContact } from "./verifyContact";
 import GetTicketWbot from "../../helpers/GetTicketWbot";
+import saveMediaToFile from "../../helpers/saveMediaFile";
+import { _t } from "../TranslationServices/i18nService";
 
 export interface ImessageUpsert {
   messages: proto.IWebMessageInfo[];
@@ -74,8 +74,6 @@ interface IMe {
   name: string;
   id: string;
 }
-
-const writeFileAsync = promisify(writeFile);
 
 const wbotMutex = new Mutex();
 const ackMutex = new Mutex();
@@ -90,17 +88,6 @@ const getTypeMessage = (msg: proto.IWebMessageInfo): string => {
 const getTypeEditedMessage = (msg: proto.IMessage): string => {
   return getContentType(msg);
 };
-
-export function makeid(length: number) {
-  let result = "";
-  const characters =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  const charactersLength = characters.length;
-  for (let i = 0; i < length; i += 1) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
-}
 
 const msgLocation = (
   image:
@@ -180,7 +167,7 @@ export const getBodyMessage = (msg: proto.IMessage): string | null => {
       documentMessage: msg?.documentMessage?.caption,
       documentWithCaptionMessage:
         msg?.documentWithCaptionMessage?.message?.documentMessage?.caption,
-      audioMessage: "Áudio",
+      audioMessage: "🔊",
       listResponseMessage:
         msg?.listResponseMessage?.singleSelectReply?.selectedRowId,
       reactionMessage: msg?.reactionMessage?.text || "reaction"
@@ -403,8 +390,14 @@ const downloadMedia = async (
     message?.fileLength &&
     +message.fileLength > fileLimit * 1024 * 1024
   ) {
+    const autoMessage = _t("*Automated message*", ticket);
+    const limitMessage = _t("Our system only accepts files up to ", ticket);
+    const limitInstructions = _t(
+      "We received a file beyond the size limit, If necessary, it can be obtained in the WhatsApp application.",
+      ticket
+    );
     const fileLimitMessage = {
-      text: `*Mensagem Automática*:\nNosso sistema aceita apenas arquivos com no máximo ${fileLimit} MiB`
+      text: `${autoMessage}: ${limitMessage} ${fileLimit} MiB`
     };
 
     if (!ticket.isGroup && !fromMe) {
@@ -413,8 +406,7 @@ const downloadMedia = async (
         fileLimitMessage
       );
 
-      sendMsg.message.extendedTextMessage.text =
-        "*Mensagem do sistema*:\nArquivo recebido além do limite de tamanho do sistema, se for necessário ele pode ser obtido no aplicativo do whatsapp.";
+      sendMsg.message.extendedTextMessage.text = `${autoMessage}: ${limitInstructions}.`;
 
       // eslint-disable-next-line no-use-before-define
       await verifyMessage(sendMsg, ticket, ticket.contact);
@@ -465,10 +457,6 @@ const downloadMedia = async (
   if (!filename) {
     const ext = message.mimetype.split("/")[1].split(";")[0];
     filename = `${makeRandomId(5)}-${new Date().getTime()}.${ext}`;
-  } else {
-    filename = `${filename.split(".").slice(0, -1).join(".")}.${makeRandomId(
-      5
-    )}.${filename.split(".").slice(-1)}`;
   }
 
   const media = {
@@ -568,34 +556,6 @@ const verifyQuotedMessage = async (
   return dbQuotedMsg;
 };
 
-const saveMediaToFile = async (media, ticket: Ticket): Promise<string> => {
-  if (!media.filename) {
-    const ext = media.mimetype.split("/")[1].split(";")[0];
-    media.filename = `${new Date().getTime()}.${ext}`;
-  }
-
-  const filePath = getPublicPath();
-  const randomId = makeRandomId(10);
-
-  const relativePath = `media/${ticket.companyId}/${ticket.contactId}/${ticket.id}/${randomId}`;
-
-  try {
-    // create folders inside filepath if not exists
-    await fs.promises.mkdir(join(filePath, relativePath), { recursive: true });
-
-    await writeFileAsync(
-      join(filePath, relativePath, media.filename),
-      media.data,
-      "base64"
-    );
-  } catch (err) {
-    Sentry.captureException(err);
-    logger.error(err);
-  }
-
-  return `${relativePath}/${media.filename}`;
-};
-
 /**
  * @description: call UpdateTicketService to update ticket status, if ticketData have a queue id it will not run the chatbot
  * @params {Ticket} ticket - ticket to be updated
@@ -622,7 +582,8 @@ export const verifyMediaMessage = async (
   contact: Contact,
   wbot: Session = null,
   messageMedia = null,
-  userId: number = null
+  userId: number = null,
+  mediaInfo: MediaInfo = null
 ): Promise<Message> => {
   const io = getIO();
   const quotedMsg = await verifyQuotedMessage(msg, ticket, wbot);
@@ -630,18 +591,20 @@ export const verifyMediaMessage = async (
   const thumbnailMsg = messageMedia || msg?.message?.extendedTextMessage;
   const thumbnailMedia =
     thumbnailMsg && (await downloadThumbnail(thumbnailMsg));
-  const media = await downloadMedia(
-    getUnpackedMessage(msg),
-    wbot,
-    ticket,
-    msg.key?.fromMe
-  );
+  const media =
+    !mediaInfo &&
+    (await downloadMedia(
+      getUnpackedMessage(msg),
+      wbot,
+      ticket,
+      msg.key?.fromMe
+    ));
 
-  if (!media && !thumbnailMedia) {
+  if (!mediaInfo && !media && !thumbnailMedia) {
     throw new Error("ERR_WAPP_DOWNLOAD_MEDIA");
   }
 
-  let mediaUrl = null;
+  let mediaUrl = mediaInfo?.mediaUrl || null;
   if (media) {
     mediaUrl = await saveMediaToFile(media, ticket);
   }
@@ -651,7 +614,9 @@ export const verifyMediaMessage = async (
     thumbnailUrl = await saveMediaToFile(thumbnailMedia, ticket);
   }
 
-  const mediaType = media?.mimetype.split("/")[0];
+  const mimetype = mediaInfo?.mimetype || media?.mimetype || "";
+  const mediaType = mimetype.split("/")[0];
+  const filename = mediaInfo?.filename || media?.filename || "file.bin";
 
   let body = getBodyMessage(msg?.message);
 
@@ -676,7 +641,7 @@ export const verifyMediaMessage = async (
           ? mediaUrl
           : `${getPublicPath()}/${mediaUrl}`,
         { apiKey, provider },
-        media.filename
+        filename
       );
       if (audioTranscription) {
         body = audioTranscription;
@@ -703,7 +668,7 @@ export const verifyMediaMessage = async (
   };
 
   await ticket.update({
-    lastMessage: body || media?.filename ? `📎 ${media?.filename}` : ""
+    lastMessage: body || filename ? `📎 ${filename}` : ""
   });
 
   const newMessage = await CreateMessageService({
@@ -1045,9 +1010,10 @@ const sendMenu = async (
     });
 
     if (sendBackToMain) {
-      options += showNumericIcons
-        ? "\n#️⃣ - Voltar Menu Inicial"
-        : "\n*[ # ]* - Voltar Menu Inicial";
+      options += `\n${showNumericIcons ? "#️⃣" : "[ # ]"} - ${_t(
+        "Back to Main Menu",
+        ticket
+      )}`;
     }
 
     const textMessage = {
@@ -1270,7 +1236,7 @@ const handleRating = async (
   });
 
   const complationMessage =
-    whatsapp.complationMessage.trim() || "Atendimento finalizado";
+    whatsapp.complationMessage.trim() || _t("Service completed", ticket);
 
   const text = formatBody(`\u200e${complationMessage}`, ticket);
 
@@ -1620,7 +1586,7 @@ const handleMessage = async (
             quickMessage(
               wbot,
               ticketTracking.ticket,
-              "Atendimento reaberto",
+              _t("Service reopened", ticketTracking.ticket),
               true
             );
             return;
@@ -1632,7 +1598,11 @@ const handleMessage = async (
           ticketTracking.update({
             expired: true
           });
-          quickMessage(wbot, ticketTracking.ticket, "Avaliação cancelada");
+          quickMessage(
+            wbot,
+            ticketTracking.ticket,
+            _t("Rating Cancelled", ticketTracking.ticket)
+          );
           if (bodyMessage.length < 10) {
             // short message just stop the processing
             return;
@@ -1758,7 +1728,7 @@ const handleMessage = async (
               outOfHoursCache.set(`ticket-${ticket.id}`, true);
               const outOfHoursMessage =
                 whatsapp.outOfHoursMessage.trim() ||
-                "Estamos fora do horário de expediente";
+                _t("We are out of office hours right now", ticket);
               const sentMessage = await wbot.sendMessage(getJidOf(ticket), {
                 text: formatBody(outOfHoursMessage, ticket)
               });
@@ -1794,7 +1764,7 @@ const handleMessage = async (
               outOfHoursCache.set(`ticket-${ticket.id}`, true);
               const outOfHoursMessage =
                 queue.outOfHoursMessage?.trim() ||
-                "Estamos fora do horário de expediente";
+                _t("We are out of office hours right now", ticket);
               const sentMessage = await wbot.sendMessage(getJidOf(ticket), {
                 text: formatBody(outOfHoursMessage, ticket)
               });
@@ -1864,10 +1834,8 @@ const handleMessage = async (
       }
     }
 
-    if (whatsapp.queues.length && ticket.queue) {
-      if (ticket.chatbot && !msg.key.fromMe) {
-        await handleChartbot(ticket, msg, wbot, dontReadTheFirstQuestion);
-      }
+    if (ticket.queue && ticket.chatbot && !msg.key.fromMe) {
+      await handleChartbot(ticket, msg, wbot, dontReadTheFirstQuestion);
     }
   } catch (err) {
     console.log(err);
@@ -1988,16 +1956,13 @@ const wbotMessageListener = async (
           );
           return;
         }
-        const messageExists = await Message.count({
-          where: { id: message.key.id!, companyId }
-        });
 
-        if (!messageExists) {
-          if (await verifyRecentCampaign(message, companyId)) {
-            return;
-          }
-          await handleMessage(message, wbot, companyId);
+        await wbot.sendReceipts([message.key], undefined);
+
+        if (await verifyRecentCampaign(message, companyId)) {
+          return;
         }
+        await handleMessage(message, wbot, companyId);
       });
     });
 
