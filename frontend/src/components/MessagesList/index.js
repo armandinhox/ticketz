@@ -25,7 +25,10 @@ import {
   Facebook,
   Instagram,
   Description,
-  Forward
+  Forward,
+  Launch,
+  Reply,
+  LocationOn
 } from "@material-ui/icons";
 
 import WhatsMarked from "react-whatsmarked";
@@ -41,6 +44,7 @@ import { i18n } from "../../translate/i18n";
 import vCard from "vcard-parser";
 import { generateColor } from "../../helpers/colorGenerator";
 import { getInitials } from "../../helpers/getInitials";
+import { downloadFile } from "../../helpers/downloadFile";
 import { Mutex } from "async-mutex";
 
 const loadPageMutex = new Mutex();
@@ -63,7 +67,7 @@ const useStyles = makeStyles((theme) => ({
     flexGrow: 1,
     width: "100%",
     minWidth: 300,
-    minHeight: 200,
+    minHeight: 150,
   },
 
   messagesList: {
@@ -89,7 +93,7 @@ const useStyles = makeStyles((theme) => ({
     marginRight: 20,
     marginTop: 2,
     minWidth: 100,
-    maxWidth: 600,
+    maxWidth: "min(600px, 100%)",
     height: "auto",
     display: "block",
     position: "relative",
@@ -151,7 +155,7 @@ const useStyles = makeStyles((theme) => ({
     marginLeft: 20,
     marginTop: 2,
     minWidth: 100,
-    maxWidth: 600,
+    maxWidth: "min(600px, 100%)",
     height: "auto",
     display: "block",
     position: "relative",
@@ -233,7 +237,21 @@ const useStyles = makeStyles((theme) => ({
     overflowWrap: "break-word",
     padding: "3px 80px 6px 6px",
   },
+  
+  messageLocation: {
+    display: 'flex',
+    padding: 5,
+    cursor: 'pointer',
+  },
 
+  messageLocationText: {
+    verticalAlign: "middle",
+    paddingLeft: 5,
+    minWidth: 200,
+    marginTop: "auto",
+    marginBottom: "auto",
+  },
+  
   textContentItemDeleted: {
     fontStyle: "italic",
     color: "rgba(0, 0, 0, 0.36)",
@@ -245,6 +263,10 @@ const useStyles = makeStyles((theme) => ({
     overflowWrap: "break-word",
     padding: "3px 120px 6px 6px",
   },
+  messageMediaDeleted: {
+    filter: "grayscale(1)",
+    opacity: 0.4
+  },  
 
   messageVideo: {
     width: 250,
@@ -341,8 +363,9 @@ const useStyles = makeStyles((theme) => ({
   },
   imageLocation: {
     position: 'relative',
-    width: '100%',
-    height: 80,
+    color: 'red',
+    width: 100,
+    height: 100,
     borderRadius: 5
   },
 
@@ -475,6 +498,7 @@ const useStyles = makeStyles((theme) => ({
   },
   previewThumbnail: {
     width: "383px",
+    maxWidth: "100%",
   },
   audioBottom: {
     marginBottom: "12px",
@@ -504,6 +528,12 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: 5,
     borderLeft: "5px solid",
     borderColor: theme.mode === 'light' ? "#000" : "#fff",
+  },
+  messageButton: {
+    display: "flex",
+    width: "100%",
+    textTransform: "none",
+    margin: "auto",
   }
 }));
 
@@ -562,7 +592,7 @@ const reducer = (state, action) => {
   }
 };
 
-const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
+const MessagesList = ({ ticket, ticketId, isGroup, markAsRead, allowReplyButtons }) => {
   const classes = useStyles();
 
   const [messagesList, dispatch] = useReducer(reducer, []);
@@ -728,10 +758,10 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
               [classes.textContentItemDeleted]: message.isDeleted,
               [classes.textContentItem]: !message.isDeleted,
             }),]}>
-              {data?.message?.imageMessage?.caption &&
+              {message.body &&
                 <>
                   <WhatsMarked>
-                    {data.message.imageMessage.caption}
+                    {message.body}
                   </WhatsMarked>
                 </>
               }
@@ -749,7 +779,7 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
           </audio>
           {
             message.body &&
-            !message.body.startsWith("Áudio") &&
+            !["🔊","Áudio"].includes(message.body) &&
             <div className={classes.mediaDescription}>
               {message.body}
             </div>
@@ -760,11 +790,27 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
 
     if (!document || message.mediaType === "video") {
       return (
-        <video
-          className={classes.messageVideo}
-          src={message.mediaUrl}
-          controls
-        />
+        <>
+          <video
+            className={[clsx(classes.messageVideo, {
+              [classes.messageMediaDeleted]: message.isDeleted
+            })]}
+            src={message.mediaUrl}
+            controls
+          />
+          <div className={[clsx({
+            [classes.textContentItemDeleted]: message.isDeleted,
+            [classes.textContentItem]: !message.isDeleted,
+          }),]}>
+            {message.body &&
+              <>
+                <WhatsMarked>
+                  {message.body}
+                </WhatsMarked>
+              </>
+            }
+          </div>
+        </>
       );
     } else {
       return (
@@ -775,8 +821,7 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
               endIcon={<GetApp />}
               color="primary"
               variant="outlined"
-              target="_blank"
-              href={message.mediaUrl}
+              onClick={() => downloadFile(message.mediaUrl)}
             >
              { document?.fileName || message.body}
             </Button>
@@ -1001,6 +1046,90 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
     );
   };
 
+  const sendReply = async (body) => {
+    const message = {
+      read: 1,
+      fromMe: true,
+      mediaUrl: "",
+      body
+    };
+
+    api.post(`/messages/${ticketId}`, message).catch((err) => {
+      toastError(err);
+    });
+  };
+
+  const renderReplyButton = (text) => {
+    return (
+      <Button
+        className={classes.messageButton}
+        color="primary"
+        startIcon={<Reply />}
+        disabled={!(allowReplyButtons || false)}
+        onClick={() => {
+          if (allowReplyButtons) {
+            sendReply(text);
+          };
+        }
+        }
+      >
+        {text}
+      </Button>
+    );
+  }
+  
+  const renderUrlButton = ({ displayText, url }) =>
+    <Button
+      className={classes.messageButton}
+      color="primary"
+      startIcon={displayText === 'Facebook' ? <Facebook /> : displayText === 'Instagram' ? <Instagram /> : <Launch />}
+    >
+      <a href={url} target="_blank" style={{ textDecoration: 'none', color: 'inherit' }}>
+        {displayText}
+      </a>
+    </Button>
+  
+  const renderButtons = (message) => {
+    const objects = 
+      message?.buttonsMessage?.buttons ||
+      message?.listMessage?.sections ||
+      message?.templateMessage?.hydratedTemplate?.hydratedButtons ||
+      message?.templateMessage?.interactiveMessageTemplate?.nativeFlowMessage?.buttons
+
+    if (!objects) return (<></>);
+
+    return objects.map((item) => {
+      if (item.urlButton) {
+        return renderUrlButton({
+          displayText: item.urlButton.displayText,
+          url: item.urlButton.url
+        });
+      } else if (item.quickReplyButton) {
+        return renderReplyButton(item.quickReplyButton.displayText);
+      } else if (item.type === "RESPONSE" && item.buttonText) {
+        return renderReplyButton(item.buttonText.displayText);
+      } else if (item.buttonParamsJson) {
+        const params = JSON.parse(item.buttonParamsJson);
+        if (params?.url && params.display_text) {
+          return renderUrlButton({
+            displayText: params.display_text,
+            url: params.url
+          });
+        }
+        if (params?.display_text) {
+          return renderReplyButton(params.display_text);
+        }
+      } else if (item.rows) {
+        return item.rows.map((row) => {
+          return renderReplyButton(row.title);
+        });
+      }
+         
+      return (<></>);
+    }
+    );
+  };
+  
   const formatVCardN = (n) => {
     return(
       (n[3] ? n[3] + " " : "") +
@@ -1116,15 +1245,49 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
 
     });
   };
+  
+  const convertToDMS = (degrees) => {
+    const deg = Math.floor(degrees);
+    const minFloat = (degrees - deg) * 60;
+    const min = Math.floor(minFloat);
+    const sec = Math.floor((minFloat - min) * 60);
+    const frac = ((minFloat - min) * 60 - sec).toFixed(2).substring(1);
+    return `${deg}°${min}'${sec}${frac}"`;
+  }
+  
+  const convertCoordinates = (lat, lon) => {
+    const latitude = convertToDMS(Math.abs(lat)) + (lat >= 0 ? " N" : " S");
+    const longitude = convertToDMS(Math.abs(lon)) + (lon >= 0 ? " E" : " W");
+    return `${latitude}, ${longitude}`;
+  }
 
-  const messageLocation = (message, createdAt) => {
+  const messageLocation = (data, createdAt) => {
+    const location = data?.message?.locationMessage;
+    if (!location) {
+      return (<></>);
+    }
+
+    const mapUrl = `https://www.google.com/maps?q=${location?.degreesLatitude},${location?.degreesLongitude}`;
+
     return (
-      <div className={[classes.textContentItem, { display: 'flex', padding: 5 }]}>
-        <img src={message.split('|')[0]} className={classes.imageLocation} />
-        <a
-          style={{ fontWeight: '700', color: 'gray' }}
-          target="_blank"
-          href={message.split('|')[1]}> Clique para ver localização</a>
+      <div onClick={
+        () => {
+          window.open(mapUrl, '_blank');
+        }
+      } className={[clsx(classes.textContentItem, classes.messageLocation)]}>
+        <div>
+        { location?.jpegThumbnail ? 
+        <img src={`data:image/png;base64, ${location.jpegThumbnail}`} className={classes.imageLocation} />
+        :
+        <LocationOn className={classes.imageLocation} fontSize="large" color="red" />
+        }
+        </div>
+        <div className={classes.messageLocationText}>
+           { location.name ? <><b>{location.name}</b><br /></> : "" }
+           { location.url ? <><a href={location.url} target="_blank" rel="noreferrer">{location.url}</a><br /></> : "" }
+           { location.address ? <>{location.address}<br /></> : "" }
+           { convertCoordinates(location.degreesLatitude, location.degreesLongitude) }
+        </div>
         <span className={classes.timestamp}>
           {format(parseISO(createdAt), "HH:mm")}
         </span>
@@ -1197,11 +1360,11 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
                 </span>
               )}
 
-              {message.thumbnailUrl && (
+              {message.thumbnailUrl && !message.mediaUrl && (
                 <img className={classes.previewThumbnail} src={message.thumbnailUrl} />
               )}
 
-              {message.body.includes('data:image') ? messageLocation(message.body, message.createdAt)
+              {data?.message?.locationMessage ? messageLocation(data, message.createdAt)
                 :
                 isVCard(message.body) ?
                   <div
@@ -1245,6 +1408,7 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
                     </span>
                   </div>)}
                   {message.mediaUrl && !data?.message?.extendedTextMessage && checkMessageMedia(message, data)}
+                  {renderButtons(data?.message)}
                   {renderReplies(message.replies)}
             </div>
           </React.Fragment>
@@ -1277,7 +1441,7 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
                 </span>
               )}
 
-              {message.thumbnailUrl && (
+              {message.thumbnailUrl && !message.mediaUrl && (
                 <img className={classes.previewThumbnail} src={message.thumbnailUrl} />
               )}                                
 
@@ -1295,7 +1459,7 @@ const MessagesList = ({ ticket, ticketId, isGroup, markAsRead }) => {
                   />
                 )}
 
-                {message.body.includes('data:image') ? messageLocation(message.body, message.createdAt)
+                { data?.message?.locationMessage ? messageLocation(data, message.createdAt)
                   :
                   isVCard(message.body) ?
                     <div className={[classes.textContentItem]}>

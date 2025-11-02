@@ -12,8 +12,10 @@ import {
   proto,
   WAMessage,
   WAMessageUpdate,
-  WAMessageStubType
-} from "baileys";
+  WAMessageStubType,
+  WAGenericMediaMessage,
+  WALocationMessage
+} from "libzapitu-rf";
 import { Mutex } from "async-mutex";
 import { Op } from "sequelize";
 import moment from "moment";
@@ -26,7 +28,9 @@ import Message from "../../models/Message";
 import OldMessage from "../../models/OldMessage";
 
 import { getIO } from "../../libs/socket";
-import CreateMessageService from "../MessageServices/CreateMessageService";
+import CreateMessageService, {
+  websocketCreateMessage
+} from "../MessageServices/CreateMessageService";
 import { logger } from "../../utils/logger";
 import FindOrCreateTicketService from "../TicketServices/FindOrCreateTicketService";
 import ShowWhatsAppService from "../WhatsappService/ShowWhatsAppService";
@@ -85,34 +89,46 @@ const getTypeMessage = (msg: proto.IWebMessageInfo): string => {
   return getContentType(msg.message);
 };
 
-const getTypeEditedMessage = (msg: proto.IMessage): string => {
-  return getContentType(msg);
-};
+const msgLocationBody = (locationMessage: WALocationMessage) => {
+  if (!locationMessage) return "";
 
-const msgLocation = (
-  image:
-    | Uint8Array
-    | ArrayBuffer
-    | { valueOf(): ArrayBuffer | SharedArrayBuffer },
-  latitude: number,
-  longitude: number
-) => {
-  if (image) {
-    const b64 = Buffer.from(image).toString("base64");
+  let body = "📍\n";
 
-    const data = `data:image/png;base64, ${b64} | https://maps.google.com/maps?q=${latitude}%2C${longitude}&z=17&hl=pt-BR|${latitude}, ${longitude} `;
-    return data;
+  if (locationMessage.name) {
+    body += `*${locationMessage.name}*\n`;
   }
-  return "";
+
+  if (locationMessage.address) {
+    body += `_${locationMessage.address}_\n`;
+  }
+
+  if (locationMessage.degreesLatitude && locationMessage.degreesLongitude) {
+    body += `https://maps.google.com/maps?q=${locationMessage.degreesLatitude}%2C${locationMessage.degreesLongitude}&z=17&hl=pt-BR\n`;
+  }
+
+  return body;
 };
 
 export const getBodyFromTemplateMessage = (
   templateMessage: proto.Message.ITemplateMessage
 ) => {
+  const title =
+    templateMessage.interactiveMessageTemplate?.header?.title?.trim() ||
+    templateMessage.hydratedTemplate?.hydratedTitleText?.trim();
+
+  const body =
+    templateMessage.interactiveMessageTemplate?.body?.text?.trim() ||
+    templateMessage.hydratedTemplate?.hydratedContentText?.trim() ||
+    "";
+
+  const footer =
+    templateMessage.interactiveMessageTemplate?.footer?.text?.trim() ||
+    templateMessage.hydratedTemplate?.hydratedFooterText?.trim();
+
   return (
-    templateMessage.hydratedTemplate?.hydratedContentText ||
-    templateMessage.interactiveMessageTemplate?.body ||
-    "unsupported templateMessage"
+    (title ? `*${title}*\n\n` : "") +
+    (body || "") +
+    (footer ? `\n\n⣿${footer}⣿` : "")
   );
 };
 
@@ -132,6 +148,8 @@ export const getBodyMessage = (msg: proto.IMessage): string | null => {
       imageMessage: msg?.imageMessage?.caption,
       videoMessage: msg?.videoMessage?.caption,
       extendedTextMessage: msg?.extendedTextMessage?.text,
+      buttonsMessage: msg?.buttonsMessage?.contentText,
+      listMessage: msg?.listMessage?.description,
       templateMessage:
         msg?.templateMessage && getBodyFromTemplateMessage(msg.templateMessage),
       buttonsResponseMessage: msg?.buttonsResponseMessage?.selectedButtonId,
@@ -157,12 +175,7 @@ export const getBodyMessage = (msg: proto.IMessage): string | null => {
         JSON.stringify({
           ticketzvCard: msg.contactsArrayMessage.contacts
         }),
-      // locationMessage: `Latitude: ${msg.locationMessage?.degreesLatitude} - Longitude: ${msg.locationMessage?.degreesLongitude}`,
-      locationMessage: msgLocation(
-        msg?.locationMessage?.jpegThumbnail,
-        msg?.locationMessage?.degreesLatitude,
-        msg?.locationMessage?.degreesLongitude
-      ),
+      locationMessage: msgLocationBody(msg?.locationMessage),
       liveLocationMessage: `Latitude: ${msg?.liveLocationMessage?.degreesLatitude} - Longitude: ${msg?.liveLocationMessage?.degreesLongitude}`,
       documentMessage: msg?.documentMessage?.caption,
       documentWithCaptionMessage:
@@ -237,7 +250,7 @@ const getSenderMessage = (
   return senderId && jidNormalizedUser(senderId);
 };
 
-const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
+const getContactMessage = async (msg: WAMessage, wbot: Session) => {
   const isGroup = msg.key.remoteJid.includes("g.us");
   const rawNumber = msg.key.remoteJid.replace(/\D/g, "");
   return isGroup
@@ -247,6 +260,8 @@ const getContactMessage = async (msg: proto.IWebMessageInfo, wbot: Session) => {
       }
     : {
         id: msg.key.remoteJid,
+        lid: msg?.key?.sender_lid,
+        jid: msg?.key?.sender_pn,
         name: msg.key.fromMe ? rawNumber : msg.pushName
       };
 };
@@ -258,9 +273,6 @@ const getUnpackedMessage = (msg: proto.IWebMessageInfo) => {
     msg.message?.viewOnceMessage?.message ||
     msg.message?.viewOnceMessageV2?.message ||
     msg.message?.ephemeralMessage?.message ||
-    msg.message?.templateMessage?.hydratedTemplate ||
-    msg.message?.templateMessage?.hydratedFourRowTemplate ||
-    msg.message?.templateMessage?.fourRowTemplate ||
     msg.message?.interactiveMessage?.header ||
     msg.message?.highlyStructuredMessage?.hydratedHsm?.hydratedTemplate ||
     msg.message
@@ -274,6 +286,16 @@ const getMessageMedia = (message: proto.IMessage) => {
     message?.videoMessage ||
     message?.stickerMessage ||
     message?.documentMessage ||
+    message?.documentWithCaptionMessage?.message?.documentMessage ||
+    message?.templateMessage?.interactiveMessageTemplate?.header
+      ?.imageMessage ||
+    message?.templateMessage?.interactiveMessageTemplate?.header
+      ?.videoMessage ||
+    message?.templateMessage?.interactiveMessageTemplate?.header
+      ?.documentMessage ||
+    message?.templateMessage?.hydratedTemplate?.imageMessage ||
+    message?.templateMessage?.hydratedTemplate?.videoMessage ||
+    message?.templateMessage?.hydratedTemplate?.documentMessage ||
     null
   );
 };
@@ -316,9 +338,9 @@ export const normalizeThumbnailMediaType = (
   mimetype: string
 ): "thumbnail-video" | "thumbnail-image" | "thumbnail-document" => {
   const types = ["thumbnail-video", "thumbnail-image", "thumbnail-document"];
-  const type = mimetype.split("/")[0];
+  const type = `thumbnail-${mimetype.split("/")[0]}`;
 
-  if (!types.includes(`thumbnail-${type}`)) {
+  if (!types.includes(type)) {
     return "thumbnail-document";
   }
 
@@ -334,9 +356,13 @@ const downloadThumbnail = async ({
     return null;
   }
 
+  const mediaType = mimetype
+    ? normalizeThumbnailMediaType(mimetype)
+    : "thumbnail-link";
+
   const stream = await downloadContentFromMessage(
     { mediaKey, directPath },
-    mimetype ? normalizeThumbnailMediaType(mimetype) : "thumbnail-link"
+    mediaType
   );
 
   if (!stream) {
@@ -576,14 +602,28 @@ async function updateTicket(
   return ticket;
 }
 
+type VerifyMessageOptions = {
+  userId?: number;
+  skipWebsocket?: boolean;
+};
+
+type VerifyMediaMessageOptions = VerifyMessageOptions & {
+  messageMedia?: WAGenericMediaMessage | null;
+  mediaInfo?: MediaInfo | null;
+  wbot?: Session | null;
+};
+
 export const verifyMediaMessage = async (
   msg: proto.IWebMessageInfo,
   ticket: Ticket,
   contact: Contact,
-  wbot: Session = null,
-  messageMedia = null,
-  userId: number = null,
-  mediaInfo: MediaInfo = null
+  {
+    wbot,
+    messageMedia,
+    userId,
+    mediaInfo,
+    skipWebsocket
+  }: VerifyMediaMessageOptions = {}
 ): Promise<Message> => {
   const io = getIO();
   const quotedMsg = await verifyQuotedMessage(msg, ticket, wbot);
@@ -636,15 +676,22 @@ export const verifyMediaMessage = async (
     );
 
     if (apiKey) {
-      const audioTranscription = await transcriber(
-        mediaUrl.startsWith("http")
-          ? mediaUrl
-          : `${getPublicPath()}/${mediaUrl}`,
-        { apiKey, provider },
-        filename
-      );
-      if (audioTranscription) {
-        body = audioTranscription;
+      try {
+        const audioTranscription = await transcriber(
+          mediaUrl.startsWith("http")
+            ? mediaUrl
+            : `${getPublicPath()}/${mediaUrl}`,
+          { apiKey, provider },
+          filename
+        );
+        if (audioTranscription) {
+          body = audioTranscription;
+        }
+      } catch (error) {
+        logger.error(
+          { message: error?.message },
+          "Error transcribing audio message"
+        );
       }
     }
   }
@@ -673,7 +720,8 @@ export const verifyMediaMessage = async (
 
   const newMessage = await CreateMessageService({
     messageData,
-    companyId: ticket.companyId
+    companyId: ticket.companyId,
+    skipWebsocket
   });
 
   if (!msg.key.fromMe && ticket.status === "closed") {
@@ -711,7 +759,7 @@ export const verifyMessage = async (
   msg: proto.IWebMessageInfo,
   ticket: Ticket,
   contact: Contact,
-  userId: number = null
+  { userId, skipWebsocket }: VerifyMessageOptions = {}
 ) => {
   const io = getIO();
   const quotedMsg = await verifyQuotedMessage(msg, ticket);
@@ -740,7 +788,8 @@ export const verifyMessage = async (
 
   const newMessage = await CreateMessageService({
     messageData,
-    companyId: ticket.companyId
+    companyId: ticket.companyId,
+    skipWebsocket
   });
 
   if (!msg.key.fromMe && ticket.status === "closed") {
@@ -779,36 +828,15 @@ export const verifyEditedMessage = async (
   ticket: Ticket,
   msgId: string
 ) => {
-  const editedType = getTypeEditedMessage(msg);
+  const editedText =
+    msg.conversation ||
+    msg.extendedTextMessage?.text ||
+    msg.imageMessage?.caption ||
+    msg.videoMessage?.caption ||
+    msg.documentMessage.caption ||
+    msg.documentWithCaptionMessage?.message.documentMessage.caption;
 
-  let editedText: string;
-
-  switch (editedType) {
-    case "conversation": {
-      editedText = msg.conversation;
-      break;
-    }
-    case "extendedTextMessage": {
-      editedText = msg.extendedTextMessage.text;
-      break;
-    }
-    case "imageMessage": {
-      editedText = msg.imageMessage.caption;
-      break;
-    }
-    case "documentMessage": {
-      editedText = msg.documentMessage.caption;
-      break;
-    }
-    case "documentWithCaptionMessage": {
-      editedText =
-        msg.documentWithCaptionMessage.message.documentMessage.caption;
-      break;
-    }
-    default: {
-      return;
-    }
-  }
+  if (!editedText) return;
 
   const editedMsg = await Message.findByPk(msgId);
   const messageData = {
@@ -931,6 +959,7 @@ const isValidMsg = (msg: proto.IWebMessageInfo): boolean => {
       msgType === "stickerMessage" ||
       msgType === "buttonsResponseMessage" ||
       msgType === "buttonsMessage" ||
+      msgType === "templateButtonReplyMessage" ||
       msgType === "messageContextInfo" ||
       msgType === "locationMessage" ||
       msgType === "liveLocationMessage" ||
@@ -1441,7 +1470,7 @@ const handleChartbot = async (
 };
 
 const handleMessage = async (
-  msg: proto.IWebMessageInfo,
+  msg: WAMessage,
   wbot: Session,
   companyId: number,
   queueId?: number
@@ -1474,8 +1503,7 @@ const handleMessage = async (
     const bodyMessage = getBodyMessage(msg?.message);
     const msgType = getTypeMessage(msg);
 
-    const unpackedMessage =
-      msgType !== "templateMessage" && getUnpackedMessage(msg);
+    const unpackedMessage = getUnpackedMessage(msg);
     const messageMedia = unpackedMessage && getMessageMedia(unpackedMessage);
     if (msg.key.fromMe) {
       if (bodyMessage?.startsWith("\u200e")) return;
@@ -1680,11 +1708,17 @@ const handleMessage = async (
       return;
     }
 
+    let newMessage: Message;
+
     if (
       messageMedia ||
       msg?.message?.extendedTextMessage?.thumbnailDirectPath
     ) {
-      await verifyMediaMessage(msg, ticket, contact, wbot, messageMedia);
+      newMessage = await verifyMediaMessage(msg, ticket, contact, {
+        wbot,
+        messageMedia,
+        skipWebsocket: justCreated
+      });
     } else if (
       msg.message?.editedMessage?.message?.protocolMessage?.editedMessage
     ) {
@@ -1704,15 +1738,24 @@ const handleMessage = async (
     } else if (msg.message?.protocolMessage?.type === 0) {
       await verifyDeleteMessage(msg.message.protocolMessage, ticket);
     } else {
-      await verifyMessage(msg, ticket, contact);
+      newMessage = await verifyMessage(msg, ticket, contact, {
+        skipWebsocket: justCreated
+      });
     }
 
-    if (isGroup || contact.disableBot) {
+    if (isGroup || contact.disableBot || msg.key.fromMe) {
+      if (ticket.chatbot) {
+        await updateTicket(ticket, { chatbot: false });
+        await ticket.reload();
+      }
+      if (justCreated && newMessage) {
+        websocketCreateMessage(newMessage);
+      }
       return;
     }
 
     try {
-      if (!msg.key.fromMe && scheduleType) {
+      if (scheduleType) {
         const isOpenOnline =
           ticket.status === "open" && ticket.user.socketSessions.length > 0;
 
@@ -1789,11 +1832,15 @@ const handleMessage = async (
     if (
       !ticket.queue &&
       !isGroup &&
-      !msg.key.fromMe &&
       !ticket.userId &&
       whatsapp.queues.length >= 1
     ) {
       await verifyQueue(wbot, msg, ticket, ticket.contact);
+    }
+
+    if (justCreated && newMessage) {
+      await newMessage.reload();
+      websocketCreateMessage(newMessage);
     }
 
     const dontReadTheFirstQuestion = ticket.queue === null;
@@ -1804,8 +1851,7 @@ const handleMessage = async (
       justCreated &&
       !whatsapp?.queues?.length &&
       !ticket.userId &&
-      !isGroup &&
-      !msg.key.fromMe
+      !isGroup
     ) {
       const message = await Message.findOne({
         where: {
@@ -1834,7 +1880,7 @@ const handleMessage = async (
       }
     }
 
-    if (ticket.queue && ticket.chatbot && !msg.key.fromMe) {
+    if (ticket.queue && ticket.chatbot) {
       await handleChartbot(ticket, msg, wbot, dontReadTheFirstQuestion);
     }
   } catch (err) {

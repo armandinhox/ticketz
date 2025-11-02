@@ -1,4 +1,4 @@
-import { WAMessage, AnyMediaMessageContent, AnyMessageContent } from "baileys";
+import { WAMessage, AnyMediaMessageContent, AnyMessageContent } from "libzapitu-rf";
 import fs from "fs";
 import { exec } from "child_process";
 import path from "path";
@@ -120,15 +120,9 @@ export const sendWhatsappFile = async (
 
     const sentMessage = await wbot.sendMessage(getJidOf(ticket), options);
 
-    await verifyMediaMessage(
-      sentMessage,
-      ticket,
-      ticket.contact,
-      null,
-      null,
-      null,
+    await verifyMediaMessage(sentMessage, ticket, ticket.contact, {
       mediaInfo
-    );
+    });
 
     return sentMessage;
   } catch (error) {

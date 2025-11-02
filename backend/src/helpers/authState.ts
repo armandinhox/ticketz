@@ -43,8 +43,8 @@ import type {
   AuthenticationCreds,
   AuthenticationState,
   SignalDataTypeMap
-} from "baileys";
-import { BufferJSON, initAuthCreds, proto } from "baileys";
+} from "libzapitu-rf";
+import { BufferJSON, initAuthCreds, proto } from "libzapitu-rf";
 import Whatsapp from "../models/Whatsapp";
 import BaileysKeys from "../models/BaileysKeys";
 import { logger } from "../utils/logger";
@@ -63,7 +63,7 @@ const authState = async (
       whatsappId,
       type,
       key,
-      value: JSON.stringify(value)
+      value: JSON.stringify(value, BufferJSON.replacer)
     });
   };
 
@@ -82,7 +82,9 @@ const authState = async (
       );
     }
 
-    return baileysKey?.value ? JSON.parse(baileysKey.value) : null;
+    return baileysKey?.value
+      ? JSON.parse(baileysKey.value, BufferJSON.reviver)
+      : null;
   };
 
   const removeKey = async (type: string, key: string) => {

@@ -10,6 +10,7 @@ const messages = {
         save: "Salvar",
         confirm: "Confirmar",
         close: "Fechar",
+        closed: "Fechado",
         error: "Erro",
         success: "Sucesso",
         actions: "Ações",
@@ -23,6 +24,7 @@ const messages = {
         connection: "Conexão",
         queue: "Fila",
         contact: "Contato",
+        messages: "Mensagens",
         whatsappNumber: "Número do Whatsapp",
         dueDate: "Data de vencimento",
         copy: "Copiar",
@@ -30,9 +32,14 @@ const messages = {
         proceed: "Prosseguir",
         enabled: "Ativado",
         disabled: "Desativado",
+        undefined: "Indefinido",
+        yes: "Sim",
+        no: "Não",
         noqueue: "Sem fila",
         rating: "Avaliação",
         transferTo: "Transferir para",
+        key: "Chave",
+        value: "Valor",
       },
       signup: {
         title: "Cadastre-se",
@@ -117,6 +124,7 @@ const messages = {
           disconnectTitle: "Desconectar",
           disconnectMessage:
             "Tem certeza? Você precisará ler o QR Code novamente.",
+          closeTickets: "Fechar todos os atendimentos desta conexão",
         },
         buttons: {
           add: "Adicionar WhatsApp",
@@ -245,6 +253,9 @@ const messages = {
           transferMessage: "Mensagem de Transferência",
           token: "Token",
         },
+        toasts: {
+          saved: "Fila salva com sucesso",
+        },
         buttons: {
           okAdd: "Adicionar",
           okEdit: "Salvar",
@@ -270,6 +281,10 @@ const messages = {
         title: {
           add: "Adicionar usuário",
           edit: "Editar usuário",
+        },
+        listItems:{
+          adminProfile: "Administrador",
+          userProfile: "Usuário",
         },
         form: {
           name: "Nome",
@@ -333,6 +348,16 @@ const messages = {
           titleFileList: "Lista de arquivo(s)"
         },
       },
+      todolist: {
+        title: "Lista de tarefas",
+        form: {
+          name: "Nome da tarefa",
+        },
+        buttons: {
+          add: "Adicionar",
+          save: "Salvar",
+        },
+      },
       ticketsManager: {
         buttons: {
           newTicket: "Novo",
@@ -347,6 +372,7 @@ const messages = {
         },
         notification: {
           message: "Mensagem de",
+          nomessages: "Sem novas mensagens",
         },
         tabs: {
           open: { title: "Abertas" },
@@ -413,7 +439,8 @@ const messages = {
           financeiro: "Financeiro",
           logout: "Sair",
           management: "Gerência",
-          kanban: "Kanban"
+          kanban: "Kanban",
+          tasks: "Tarefas"
         },
         appBar: {
           i18n: {
@@ -657,6 +684,11 @@ const messages = {
       },
       campaignsConfig: {
         title: "Configurações de Campanhas",
+        intervals: "Intervalos",
+        messageInterval: "Intervalo entre mensagens (segundos)",
+        longerIntervalAfter: "Intervalo maior após (mensagens)",
+        longerInterval: "Intervalo maior (segundos)",
+        addVariable: "Adicionar variável",
       },
       queues: {
         title: "Filas & Chatbot",
@@ -665,6 +697,9 @@ const messages = {
           color: "Cor",
           greeting: "Mensagem de saudação",
           actions: "Ações",
+        },
+        toasts: {
+          deleted: "Fila removida com sucesso",
         },
         buttons: {
           add: "Adicionar fila",
@@ -922,6 +957,11 @@ const messages = {
         },
         Plans: {
           title: "Planos",
+          public: "Público",
+          usersLimit: "Limite de usuários",
+          connectionsLimit: "Limite de conexões",
+          queuesLimit: "Limite de filas",
+          currencyCode: "Código da Moeda (ISO 4217)",
         },
         Help: {
           title: "Ajuda",
@@ -931,6 +971,9 @@ const messages = {
         },
         PaymentGateways: {
           title: "Payment gateways",
+        },
+        i18nSettings: {
+          title: "Traduções",
         },
         AIProvider: {
           title: "Serviço de IA",
@@ -955,6 +998,8 @@ const messages = {
             resolve: "Resolver",
             reopen: "Reabrir",
             accept: "Aceitar",
+            call: "Chamar",
+            endCall: "Encerrar Chamada",
           },
         },
       },
@@ -1055,10 +1100,15 @@ const messages = {
           disappearing: "Para atualizar o Modo de Desaparecimento Padrão",
         },
       },
+      frontendErrors: {
+        ERR_CONFIG_ERROR: "Erro de configuração. Por favor, contate o suporte.",
+        ERR_CLOCK_OUT_OF_SYNC: "Relógio fora de sincronia. Por favor, verifique as configurações de data e hora do seu dispositivo.",
+        ERR_BACKEND_UNREACHABLE: "Backend inacessível. Por favor, tente novamente mais tarde.",
+      },
       backendErrors: {
         ERR_UNAUTHORIZED: "Você não está autorizado a acessar este recurso.",
         ERR_FORBIDDEN: "Você não tem permissão para acessar este recurso.",
-        ERR_CHECK_NUMBER: "Verifique o número e tente novamente.",
+        ERR_CHECK_NUMBER: "Número não encontrado no Whatsapp.",
         ERR_NO_OTHER_WHATSAPP: "Deve haver pelo menos um WhatsApp padrão.",
         ERR_NO_DEF_WAPP_FOUND:
           "Nenhum WhatsApp padrão encontrado. Verifique a página de conexões.",
@@ -1098,6 +1148,14 @@ const messages = {
         ERR_WAPP_NOT_FOUND: "Conexão indisponível",
         ERR_SUBSCRIPTION_EXPIRED: "Assinatura expirada",
         ERR_UNKOWN: "Erro desconhecido",
+      },
+      phoneCall: {
+        hangup: "Desligar",
+      },
+      wavoipModal: {
+        title: "Insira o token da sua conexão no Wavoip",
+        instructions: "Acessando o endereço abaixo você pode criar uma conta com 50 ligações gratuitas para teste",
+        coupon: "Ao contratar o serviço use o cupom TICKETZ para ganhar um desconto!",
       },
       ticketz: {
         registration: {

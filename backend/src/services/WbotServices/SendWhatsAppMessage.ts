@@ -1,4 +1,4 @@
-import { WAMessage } from "baileys";
+import { WAMessage } from "libzapitu-rf";
 import * as Sentry from "@sentry/node";
 import AppError from "../../errors/AppError";
 import GetTicketWbot from "../../helpers/GetTicketWbot";
@@ -73,7 +73,7 @@ const SendWhatsAppMessage = async ({
     wbot.cacheMessage(sentMessage);
 
     if (sentMessage?.message?.extendedTextMessage?.thumbnailDirectPath) {
-      await verifyMediaMessage(sentMessage, ticket, ticket.contact, wbot);
+      await verifyMediaMessage(sentMessage, ticket, ticket.contact, { wbot });
     } else {
       await verifyMessage(sentMessage, ticket, ticket.contact);
     }

@@ -7,9 +7,10 @@ const messages = {
         edit: "Editar",
         delete: "Eliminar",
         cancel: "Cancelar",
-        save: "Guardar",
+        save: "Salvar",
         confirm: "Confirmar",
         close: "Fechar",
+        closed: "Fechado",
         error: "Erro",
         success: "Sucesso",
         actions: "Ações",
@@ -23,11 +24,22 @@ const messages = {
         connection: "Conexão",
         queue: "Fila",
         contact: "Contacto",
+        messages: "Mensagens",
         whatsappNumber: "Número do Whatsapp",
         dueDate: "Data de vencimento",
         copy: "Copiar",
         paste: "Colar",
-        proceed: "Prosseguir",        
+        proceed: "Prosseguir",
+        enabled: "Ativado",
+        disabled: "Desativado",
+        undefined: "Indefinido",
+        yes: "Sim",
+        no: "Não",
+        noqueue: "Sem fila",
+        rating: "Classificação",
+        transferTo: "Transferir para",
+        key: "Chave",
+        value: "Valor",
       },
       signup: {
         title: "Registar",
@@ -90,6 +102,7 @@ const messages = {
           disconnectTitle: "Desconectar",
           disconnectMessage:
             "Tem a certeza? Terá de ler o QR Code novamente.",
+          closetTickets: "Fechar todos os atendimentos abertos desta conexão",
         },
         buttons: {
           add: "Adicionar WhatsApp",
@@ -211,6 +224,9 @@ const messages = {
           transferMessage: "Mensagem de Transferência",
           token: "Token",
         },
+        toasts: {
+          saved: "Fila salva com sucesso",
+        },
         buttons: {
           okAdd: "Adicionar",
           okEdit: "Salvar",
@@ -237,6 +253,10 @@ const messages = {
           add: "Adicionar utilizador",
           edit: "Editar utilizador",
         },
+        listItems:{
+          adminProfile: "Administrador",
+          userProfile: "Usuário",
+        },
         form: {
           name: "Nome",
           email: "Email",
@@ -248,6 +268,7 @@ const messages = {
           okEdit: "Salvar",
           cancel: "Cancelar",
         },
+        
         success: "Utilizador salvo com sucesso.",
       },
       scheduleModal: {
@@ -298,6 +319,16 @@ const messages = {
           titleFileList: "Lista de ficheiros",
         },
       },
+      todolist: {
+        title: "Lista de tarefas",
+        form: {
+          name: "Nome da tarefa",
+        },
+        buttons: {
+          add: "Adicionar",
+          save: "Salvar",
+        },
+      },
       ticketsManager: {
         buttons: {
           newTicket: "Novo",
@@ -312,6 +343,7 @@ const messages = {
         },
         notification: {
           message: "Mensagem de",
+          nomessages: "Sem novas mensagens",
         },
         tabs: {
           open: { title: "Abertos" },
@@ -321,6 +353,8 @@ const messages = {
         },
         search: {
           placeholder: "Buscar atendimento e mensagens",
+          filterByTags: "Filtro por tags",
+          filterByUsers: "Filtro por usuários",
         },
         buttons: {
           showAll: "Todos",
@@ -379,6 +413,7 @@ const messages = {
           logout: "Sair",
           management: "Gestão",
           kanban: "Kanban",
+          tasks: "Tarefas"
         },
         appBar: {
           i18n: {
@@ -622,6 +657,11 @@ const messages = {
       },
       campaignsConfig: {
         title: "Configurações de Campanhas",
+        intervals: "Intervalos",
+        messageInterval: "Intervalo entre mensagens (segundos)",
+        longerIntervalAfter: "Intervalo maior após (mensagens)",
+        longerInterval: "Intervalo maior (segundos)",
+        addVariable: "Adicionar variável",
       },
       queues: {
         title: "Filas & Chatbot",
@@ -630,6 +670,9 @@ const messages = {
           color: "Cor",
           greeting: "Mensagem de saudação",
           actions: "Ações",
+        },
+        toasts: {
+          deleted: "Fila removida com sucesso",
         },
         buttons: {
           add: "Adicionar fila",
@@ -889,6 +932,7 @@ const messages = {
             resolve: "Resolver",
             reopen: "Reabrir",
             accept: "Aceitar",
+            call: "Chamar"
           },
         },
       },
@@ -986,10 +1030,15 @@ const messages = {
           disappearing: "Para atualizar o Modo de Desaparecimento Padrão",
         },
       },
+      frontendErrors: {
+        ERR_CONFIG_ERROR: "Erro de configuração. Por favor, contacte o suporte.",
+        ERR_CLOCK_OUT_OF_SYNC: "Relógio fora de sincronização. Verifique as configurações de data e hora do seu dispositivo.",
+        ERR_BACKEND_UNREACHABLE: "Backend inacessível. Por favor, tente novamente mais tarde.",
+      },
       backendErrors: {
         ERR_UNAUTHORIZED: "Não autorizado. Por favor, faça o login novamente.",
         ERR_FORBIDDEN: "Acesso negado. Você não tem permissão para acessar este recurso.",
-        ERR_CHECK_NUMBER: "Erro ao verificar o número do WhatsApp.",
+        ERR_CHECK_NUMBER: "Número não encontrado no Whatsapp.",
         ERR_NO_OTHER_WHATSAPP: "Deve haver pelo menos um WhatsApp padrão.",
         ERR_NO_DEF_WAPP_FOUND:
           "Nenhum WhatsApp padrão encontrado. Verifique a página de conexões.",

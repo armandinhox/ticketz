@@ -75,7 +75,6 @@ const useStyles = makeStyles((_) => ({
   }
 }));
 
-
 const createSchema = Yup.object().shape({
   nome: Yup.string()
     .min(2, "Too Short!")
@@ -85,17 +84,15 @@ const createSchema = Yup.object().shape({
   whatsapp: Yup.string().min(10).test('is-phone', "Whatsapp is not valid", (value) => isValidPhoneNumber(value,"BR")).required("Required"),
 });
 
-export default function OwenSettings(props) {
+export default function PixTicketzSettings(props) {
   const { settings } = props;
   const classes = useStyles();
-  const [owenSettings, setOwenSettings] = useState({});
+  const [pixTicketzSettings, setPixTicketzSettings] = useState({});
   const { update } = useSettings();
-
   const [showCreateForm, setShowCreateForm] = useState(true);
-
   const initialCreateState = { nome: "", "cnpj": "", email: "", whatsapp: "" };
   const [createData] = useState(initialCreateState);
-
+   
   useEffect(() => {
     if (Array.isArray(settings)) {
       const newSettings = {}; 
@@ -104,8 +101,8 @@ export default function OwenSettings(props) {
           newSettings[setting.key.substring(1)] = setting.value;
         }
       });
-      setOwenSettings(newSettings);
-      if (newSettings.owenCnpj && newSettings.owenToken && newSettings.owenSecretKey ) {
+      setPixTicketzSettings(newSettings);
+      if (newSettings.owenCnpj && newSettings.owenToken && newSettings.owenSecretKey) {
         setShowCreateForm(false);
       }
       console.debug(newSettings);
@@ -120,21 +117,16 @@ export default function OwenSettings(props) {
   }
 
   async function handleSaveSetting(key) {
-    if (typeof owenSettings[key] !== "string") {
+    if (typeof pixTicketzSettings[key] !== "string") {
       return;
     }
-    storeSetting(`_${key}`, owenSettings[key]);
+    storeSetting(`_${key}`, pixTicketzSettings[key]);
     toast.success("Operação atualizada com sucesso.");
   }
-  
-  async function handleCreateForm(values) {
-    const config = {
-      baseURL: "https://pix.owenbrasil.com.br",
-      timeout: 3000,
-    };
 
+  async function handleCreateForm(values) {
     try {
-      const r = await axios.post("/api/agencia/ticketz", values, config);
+      const r = await axios.post("https://n8n.ticke.tz/webhook/8ff6a058-ca7c-453f-87e7-0764974ad510", values, { timeout: 3000 });
       console.debug("createFormResult", r);
       toast.success(r.data.message);
       setShowCreateForm(false); 
@@ -142,17 +134,23 @@ export default function OwenSettings(props) {
       toast.caller(error?.message || "Erro enviando formulário");
       console.error("createFormResult", error);
     }    
-   
-  }
-  
+  }    
+
   return (
     <>
-      <Typography variant="h5" color="primary" gutterBottom>
-        Owen Payments apoia o Ticketz
-      </Typography>
+      <div><p>
+        <b>Pix Ticketz</b> é uma implementação para recebimento via PIX através
+        do parceiro PixPDV.
+      </p></div>
       { !showCreateForm &&
       <>
-      <Typography><Link href="#" onClick={() => setShowCreateForm(true)}>Solicite aqui a abertura da sua conta</Link></Typography>
+        <div style={{marginBottom: '10px'}}>
+          <Button
+            variant="contained"
+            onClick={() => setShowCreateForm(true)}>
+            Solicite aqui a abertura da sua conta
+          </Button>
+        </div>
       <Grid spacing={3} container>
         <Grid xs={12} sm={6} md={4} item>
           <FormControl className={classes.fieldContainer}>
@@ -161,11 +159,11 @@ export default function OwenSettings(props) {
               label="CNPJ"
               variant="standard"
               name="owenCnpj"
-              value={owenSettings.owenCnpj || ""}
+              value={pixTicketzSettings.owenCnpj || ""}
               onChange={(e) => {
-                const newSettings = { ...owenSettings };
+                const newSettings = { ...pixTicketzSettings };
                 newSettings.owenCnpj = e.target.value;
-                setOwenSettings(newSettings);
+                setPixTicketzSettings(newSettings);
               }}
               onBlur={async (_) => {
                 await handleSaveSetting("owenCnpj");
@@ -180,11 +178,11 @@ export default function OwenSettings(props) {
               label="Token"
               variant="standard"
               name="owenToken"
-              value={owenSettings.owenToken || ""}
+              value={pixTicketzSettings.owenToken || ""}
               onChange={(e) => {
-                const newSettings = { ...owenSettings };
+                const newSettings = { ...pixTicketzSettings };
                 newSettings.owenToken = e.target.value;
-                setOwenSettings(newSettings);
+                setPixTicketzSettings(newSettings);
               }}
               onBlur={async (_) => {
                 await handleSaveSetting("owenToken");
@@ -199,11 +197,11 @@ export default function OwenSettings(props) {
               label="Secret Key"
               variant="standard"
               name="owenSecretKey"
-              value={owenSettings.owenSecretKey || ""}
+              value={pixTicketzSettings.owenSecretKey || ""}
               onChange={(e) => {
-                const newSettings = { ...owenSettings };
+                const newSettings = { ...pixTicketzSettings };
                 newSettings.owenSecretKey = e.target.value;
-                setOwenSettings(newSettings);
+                setPixTicketzSettings(newSettings);
               }}
               onBlur={async (_) => {
                 await handleSaveSetting("owenSecretKey");
@@ -229,21 +227,21 @@ export default function OwenSettings(props) {
       {showCreateForm &&
         <>
           <Typography><Link href="#" onClick={() => setShowCreateForm(false)}>Já abriu sua conta? Clique aqui!</Link></Typography>
-        <Formik
-          initialValues={createData}
-          enableReinitialize={true}
-          validationSchema={createSchema}
-          onSubmit={(values, actions) => {
-            setTimeout(() => {
-              handleCreateForm(values);
-              actions.setSubmitting(false);
-            }, 400);
-          }}
-        >
+          <Formik
+            initialValues={createData}
+            enableReinitialize={true}
+            validationSchema={createSchema}
+            onSubmit={(values, actions) => {
+              setTimeout(() => {
+                handleCreateForm(values);
+                actions.setSubmitting(false);
+              }, 400);
+            }}
+          >
             {({ touched, errors, isSubmitting }) => (<Form className={classes.form}>
 
-          <Grid spacing={3} container>
-            <Grid xs={12} sm={6} md={4} item>
+              <Grid spacing={3} container>
+                <Grid xs={12} sm={6} md={4} item>
                   <Field
                     as={TextField}
                     fullWidth
@@ -252,9 +250,9 @@ export default function OwenSettings(props) {
                     name="cnpj"
                     error={touched.cnpj && Boolean(errors.cnpj)}
                     helperText={touched.cnpj && errors.cnpj}
-                  />            
-            </Grid>
-            <Grid xs={12} sm={6} md={12} item>
+                  />
+                </Grid>
+                <Grid xs={12} sm={6} md={12} item>
                   <Field
                     as={TextField}
                     fullWidth
@@ -263,9 +261,9 @@ export default function OwenSettings(props) {
                     name="nome"
                     error={touched.nome && Boolean(errors.nome)}
                     helperText={touched.nome && errors.nome}
-                  />            
-            </Grid>
-            <Grid xs={12} sm={6} md={12} item>
+                  />
+                </Grid>
+                <Grid xs={12} sm={6} md={12} item>
                   <Field
                     as={TextField}
                     fullWidth
@@ -274,9 +272,9 @@ export default function OwenSettings(props) {
                     name="email"
                     error={touched.email && Boolean(errors.email)}
                     helperText={touched.email && errors.email}
-                  />            
-            </Grid>
-            <Grid xs={12} sm={6} md={12} item>
+                  />
+                </Grid>
+                <Grid xs={12} sm={6} md={12} item>
                   <Field
                     as={TextField}
                     fullWidth
@@ -285,19 +283,19 @@ export default function OwenSettings(props) {
                     name="whatsapp"
                     error={touched.whatsapp && Boolean(errors.whatsapp)}
                     helperText={touched.whatsapp && errors.whatsapp}
-                  />            
-            </Grid>
-            <Grid xs={12} sm={6} md={12} item>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-              >
-                Solicitar Abertura de Conta
-              </Button>
-            </Grid>
-          </Grid>
-          </Form>)}
+                  />
+                </Grid>
+                <Grid xs={12} sm={6} md={12} item>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                  >
+                    Solicitar Abertura de Conta
+                  </Button>
+                </Grid>
+              </Grid>
+            </Form>)}
           </Formik>
         </>
       }

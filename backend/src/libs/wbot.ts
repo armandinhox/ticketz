@@ -2,14 +2,14 @@ import * as Sentry from "@sentry/node";
 import makeWASocket, {
   WASocket,
   DisconnectReason,
-  makeCacheableSignalKeyStore,
   isJidBroadcast,
   CacheStore,
   WAMessageKey,
   WAMessageContent,
   proto,
-  jidNormalizedUser
-} from "baileys";
+  jidNormalizedUser,
+  BinaryNode
+} from "libzapitu-rf";
 
 import { Boom } from "@hapi/boom";
 // import MAIN_LOGGER from "@whiskeysockets/baileys/lib/Utils/logger";
@@ -17,6 +17,12 @@ import NodeCache from "node-cache";
 import { Op } from "sequelize";
 import { Agent } from "https";
 import { Mutex } from "async-mutex";
+import useVoiceCallsZapitu from "voice-calls-zapitu";
+import {
+  ClientToServerEvents,
+  ServerToClientEvents
+} from "voice-calls-zapitu/lib/services/transport.type";
+import { Socket } from "socket.io-client";
 import Whatsapp from "../models/Whatsapp";
 import { logger, loggerBaileys } from "../utils/logger";
 import authState from "../helpers/authState";
@@ -119,6 +125,7 @@ const waVersionCache = new NodeCache({
 });
 
 const waVersionMutex = new Mutex();
+const checkWbotDuplicity = new Mutex();
 
 const getProjectWAVersion = async () => {
   try {
@@ -239,7 +246,6 @@ export const initWASocket = async (
         const { state, saveState } = await authState(whatsapp);
 
         const msgRetryCounterCache = new NodeCache();
-        const userDevicesCache: CacheStore = new NodeCache();
         const internalGroupCache = new NodeCache({
           stdTTL: 5 * 60,
           useClones: false
@@ -287,7 +293,7 @@ export const initWASocket = async (
           browser: [clientName, "Desktop", appVersion],
           auth: {
             creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, loggerBaileys)
+            keys: state.keys
           },
           version,
           defaultQueryTimeoutMs: 60000,
@@ -296,7 +302,6 @@ export const initWASocket = async (
           msgRetryCounterCache,
           // syncFullHistory: true,
           generateHighQualityLinkPreview: true,
-          userDevicesCache,
           getMessage,
           agent: proxy,
           fetchAgent: proxy,
@@ -304,6 +309,14 @@ export const initWASocket = async (
           shouldIgnoreJid: jid =>
             isJidBroadcast(jid) || jid?.endsWith("@newsletter"),
           transactionOpts: { maxCommitRetries: 1, delayBetweenTriesMs: 10 }
+        });
+
+        wsocket.ev.on("call", async event => {
+          logger.trace({ event }, "Received call event");
+        });
+
+        wsocket.ws.on("CB:call", async (node: BinaryNode) => {
+          logger.trace({ node }, "Received raw call node");
         });
 
         wsocket.isRefreshing = isRefresh;
@@ -334,10 +347,13 @@ export const initWASocket = async (
                   qrcode: ""
                 });
                 await DeleteBaileysService(whatsapp.id);
-                io.emit(`company-${whatsapp.companyId}-whatsappSession`, {
-                  action: "update",
-                  session: whatsapp
-                });
+                io.to(`company-${whatsapp.companyId}-admin`).emit(
+                  `company-${whatsapp.companyId}-whatsappSession`,
+                  {
+                    action: "update",
+                    session: whatsapp
+                  }
+                );
               }
               if (
                 (lastDisconnect?.error as Boom)?.output?.statusCode !==
@@ -345,10 +361,13 @@ export const initWASocket = async (
               ) {
                 // connection dropped without logging out
                 await whatsapp.update({ status: "PENDING" });
-                io.emit(`company-${whatsapp.companyId}-whatsappSession`, {
-                  action: "update",
-                  session: whatsapp
-                });
+                io.to(`company-${whatsapp.companyId}-admin`).emit(
+                  `company-${whatsapp.companyId}-whatsappSession`,
+                  {
+                    action: "update",
+                    session: whatsapp
+                  }
+                );
                 removeWbot(id, false).then(() => {
                   logger.info(`Reconnecting ${name} in 2 seconds`);
                   setTimeout(async () => {
@@ -369,14 +388,50 @@ export const initWASocket = async (
                   qrcode: ""
                 });
                 await DeleteBaileysService(whatsapp.id);
-                io.emit(`company-${whatsapp.companyId}-whatsappSession`, {
-                  action: "update",
-                  session: whatsapp
-                });
+                io.to(`company-${whatsapp.companyId}-admin`).emit(
+                  `company-${whatsapp.companyId}-whatsappSession`,
+                  {
+                    action: "update",
+                    session: whatsapp
+                  }
+                );
               }
             }
 
             if (connection === "open") {
+              await whatsapp.reload({
+                include: ["wavoip"]
+              });
+              if (whatsapp.wavoip) {
+                useVoiceCallsZapitu(
+                  whatsapp.wavoip.token,
+                  wsocket,
+                  "open",
+                  true
+                )
+                  .then(
+                    (
+                      wavoipSocket: Socket<
+                        ServerToClientEvents,
+                        ClientToServerEvents
+                      >
+                    ) => {
+                      wavoipSocket.onAny((event, ...args) => {
+                        logger.trace(
+                          { event, args },
+                          `Wavoip event received: ${event}`
+                        );
+                      });
+                    }
+                  )
+                  .catch(error => {
+                    logger.error(
+                      { message: error.message },
+                      `Error initializing Wavoip for session ${name}`
+                    );
+                  });
+              }
+
               wsocket.myLid = jidNormalizedUser(wsocket.user?.lid);
               wsocket.myJid = jidNormalizedUser(wsocket.user.id);
 
@@ -399,18 +454,40 @@ export const initWASocket = async (
                 `Session ${name} details`
               );
 
-              io.emit(`company-${whatsapp.companyId}-whatsappSession`, {
-                action: "update",
-                session: whatsapp
-              });
-
-              const sessionIndex = sessions.findIndex(
-                s => s.id === whatsapp.id
+              io.to(`company-${whatsapp.companyId}-admin`).emit(
+                `company-${whatsapp.companyId}-whatsappSession`,
+                {
+                  action: "update",
+                  session: whatsapp
+                }
               );
-              if (sessionIndex === -1) {
-                wsocket.id = whatsapp.id;
-                sessions.push(wsocket);
-              }
+
+              await checkWbotDuplicity.runExclusive(async () => {
+                const sessionIndex = sessions.findIndex(
+                  s => s.id === whatsapp.id
+                );
+                if (sessionIndex === -1) {
+                  wsocket.id = whatsapp.id;
+                  sessions.push(wsocket);
+                }
+
+                const anotherSameJid = sessions.find(
+                  s => s.id !== whatsapp.id && s.myJid === wsocket.myJid
+                );
+
+                if (anotherSameJid) {
+                  logger.warn(
+                    {
+                      id: anotherSameJid.id,
+                      jid: anotherSameJid.myJid
+                    },
+                    "Another session with the same jid/lid detected"
+                  );
+                  const duplicatedWbot = getWbot(anotherSameJid.id);
+                  duplicatedWbot.logout();
+                  duplicatedWbot.ws.close();
+                }
+              });
 
               if (wsocket.isRefreshing) {
                 setTimeout(() => {
@@ -470,10 +547,13 @@ export const initWASocket = async (
                   sessions.push(wsocket);
                 }
 
-                io.emit(`company-${whatsapp.companyId}-whatsappSession`, {
-                  action: "update",
-                  session: whatsapp
-                });
+                io.to(`company-${whatsapp.companyId}-admin`).emit(
+                  `company-${whatsapp.companyId}-whatsappSession`,
+                  {
+                    action: "update",
+                    session: whatsapp
+                  }
+                );
               }
             }
           }

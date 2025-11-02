@@ -10,6 +10,7 @@ const messages = {
         save: "Save",
         confirm: "Confirm",
         close: "Close",
+        closed: "Closed",
         error: "Error",
         success: "Success",
         actions: "Actions",
@@ -23,6 +24,7 @@ const messages = {
         connection: "Connection",
         queue: "Queue",
         contact: "Contact",
+        messages: "Messages",
         whatsappNumber: "WhatsApp Number",
         dueDate: "Due Date",
         copy: "Copy",
@@ -30,9 +32,14 @@ const messages = {
         proceed: "Proceed",
         enabled: "Enabled",
         disabled: "Disabled",
+        undefined: "Undefined",
+        yes: "Yes",
+        no: "No",
         noqueue: "No queue",
         rating: "Rating",
         transferTo: "Transfer to",
+        key: "Key",
+        value: "Value",
       },
       signup: {
         title: "Sign Up",
@@ -116,6 +123,7 @@ const messages = {
           deleteMessage: "Are you sure? This action cannot be undone.",
           disconnectTitle: "Disconnect",
           disconnectMessage: "Are you sure? You will need to scan the QR Code again.",
+          closeTickets: "Close all open tickets from this connection",
         },
         buttons: {
           add: "Add WhatsApp",
@@ -239,6 +247,9 @@ const messages = {
           transferMessage: "Transfer Message",
           token: "Token",
         },
+        toasts: {
+          saved: "Queue saved successfully",
+        },
         buttons: {
           okAdd: "Add",
           okEdit: "Save",
@@ -264,6 +275,10 @@ const messages = {
         title: {
           add: "Add User",
           edit: "Edit User",
+        },
+        listItems:{
+          adminProfile: "Administrator",
+          userProfile: "User",
         },
         form: {
           name: "Name",
@@ -326,6 +341,16 @@ const messages = {
           titleFileList: "List of file(s)"
         },
       },
+      todolist: {
+        title: "Tasks list",
+        form: {
+          name: "Task name",
+        },
+        buttons: {
+          add: "Add",
+          save: "Save",
+        },
+      },
       ticketsManager: {
         buttons: {
           newTicket: "New",
@@ -340,6 +365,7 @@ const messages = {
         },
         notification: {
           message: "Message from",
+          nomessages: "No messages",
         },
         tabs: {
           open: { title: "Open" },
@@ -349,6 +375,8 @@ const messages = {
         },
         search: {
           placeholder: "Search for ticket and messages",
+          filterByTags: "Filter by tags",
+          filterByUsers: "Filter by users",
         },
         buttons: {
           showAll: "All",
@@ -405,7 +433,8 @@ const messages = {
           financeiro: "Financial",
           logout: "Logout",
           management: "Management",
-          kanban: "Kanban"
+          kanban: "Kanban",
+          tasks: "Tasks",
         },
         appBar: {
           i18n: {
@@ -648,6 +677,11 @@ const messages = {
       },
       campaignsConfig: {
         title: "Campaign Configurations",
+        intervals: "Intervals",
+        messageInterval: "Message Interval (seconds)",
+        longerIntervalAfter: "Longer Interval After (messages)",
+        longerInterval: "Longer Interval (seconds)",
+        addVariable: "Add Variable",
       },
       queues: {
         title: "Queues & Chatbot",
@@ -657,14 +691,17 @@ const messages = {
           greeting: "Greeting Message",
           actions: "Actions",
         },
-      },
-      buttons: {
-        add: "Add Queue",
-      },
-      confirmationModal: {
-        deleteTitle: "Delete",
-        deleteMessage:
-          "Are you sure? This action cannot be undone! The tickets from this queue will still exist but will no longer be assigned to any queue.",
+        toasts: {
+          deleted: "Queue removed successfully",
+        },
+        buttons: {
+          add: "Add Queue",
+        },
+        confirmationModal: {
+          deleteTitle: "Delete",
+          deleteMessage:
+            "Are you sure? This action cannot be undone! The tickets from this queue will still exist but will no longer be assigned to any queue.",
+        },
       },
       queueSelect: {
         inputLabel: "Queues",
@@ -913,6 +950,11 @@ const messages = {
         },
         Plans: {
           title: "Plans",
+          public: "Public",
+          usersLimit: "Users limit",
+          connectionsLimit: "Connections limit",
+          queuesLimit: "Queues limit",
+          currencyCode: "Currency code (ISO 4217)",
         },
         Help: {
           title: "Help",
@@ -922,6 +964,9 @@ const messages = {
         },
         PaymentGateways: {
           title: "Pasarelas de pago",
+        },
+        i18nSettings: {
+          title: "Translations",
         },
         AIProvider: {
           title: "AI Provider",
@@ -946,6 +991,8 @@ const messages = {
             resolve: "Resolve",
             reopen: "Reopen",
             accept: "Accept",
+            call: "Call",
+            endCall: "End Call",
           },
         },
       },
@@ -1046,6 +1093,11 @@ const messages = {
           disappearing: "To update the Default Disappearing Mode",
         },
       },
+      frontendErrors: {
+        ERR_CONFIG_ERROR: "Configuration error. Please contact support.",
+        ERR_CLOCK_OUT_OF_SYNC: "Clock out of sync. Please check the date and time settings of your device.",
+        ERR_BACKEND_UNREACHABLE: "Backend unreachable. Please try again later.",
+      },        
       backendErrors: {
         ERR_UNAUTHORIZED: "You are not authorized to perform this action.",
         ERR_FORBIDDEN: "You do not have permission to access this resource.",
@@ -1079,6 +1131,14 @@ const messages = {
         ERR_WAPP_NOT_FOUND: "Connection unavailable.",
         ERR_SUBSCRIPTION_EXPIRED: "Your subscription has expired.",
         ERR_UNKOWN: "Unknown error.",
+      },
+      phoneCall: {
+        hangup: "Hang up",
+      },
+      wavoipModal: {
+        title: "Enter your Wavoip connection token",
+        instructions: "By accessing the address below you can create an account with 50 free calls for testing",
+        coupon: "When hiring the service use the coupon TICKETZ to get a discount!",
       },
       ticketz: {
         registration: {

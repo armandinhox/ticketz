@@ -10,6 +10,7 @@ const messages = {
         save: "Guardar",
         confirm: "Confirmar",
         close: "Cerrar",
+        closed: "Cerrado",
         error: "Error",
         success: "Éxito",
         actions: "Acciones",
@@ -23,6 +24,7 @@ const messages = {
         connection: "Conexión",
         queue: "Cola",
         contact: "Contacto",
+        messages: "Mensajes",
         whatsappNumber: "Número de WhatsApp",
         dueDate: "Fecha de vencimiento",
         copy: "Copiar",
@@ -30,9 +32,14 @@ const messages = {
         proceed: "Proceder",
         enabled: "Activado",
         disabled: "Desactivado",
+        undefined: "Indefinido",
+        yes: "Sí",
+        no: "No",
         noqueue: "Sin cola",
         rating: "Calificación",
         transferTo: "Transferir a",
+        key: "Clave",
+        value: "Valor",
       },
       signup: {
         title: "Registrarse",
@@ -116,6 +123,7 @@ const messages = {
           disconnectTitle: "Desconectar",
           disconnectMessage:
             "¿Estás seguro? Tendrás que escanear el código QR nuevamente.",
+          closeTickets: "Cerrar todas las atenciones de esta conexión",
         },
         buttons: {
           add: "Agregar WhatsApp",
@@ -243,6 +251,9 @@ const messages = {
           transferMessage: "Mensaje de transferencia",
           token: "Token",
         },
+        toasts: {
+          saved: "Cola guardada exitosamente",
+        },
         buttons: {
           okAdd: "Agregar",
           okEdit: "Guardar",
@@ -268,6 +279,10 @@ const messages = {
         title: {
           add: "Agregar usuario",
           edit: "Editar usuario",
+        },
+        listItems:{
+          adminProfile: "Administrador",
+          userProfile: "Usuario",
         },
         form: {
           name: "Nombre",
@@ -330,6 +345,16 @@ const messages = {
           titleFileList: "Lista de archivo(s)"
         },
       },
+       todolist: {
+        title: "Lista de tareas",
+        form: {
+          name: "Nombre de la tarea",
+        },
+        buttons: {
+          add: "Añadir",
+          save: "Guardar",
+        },
+      },
       ticketsManager: {
         buttons: {
           newTicket: "Nuevo",
@@ -344,6 +369,7 @@ const messages = {
         },
         notification: {
           message: "Mensaje de",
+          nomessages: "Ningún mensaje",
         },
         tabs: {
           open: { title: "Abiertas" },
@@ -411,6 +437,7 @@ const messages = {
           logout: "Cerrar sesión",
           management: "Gerencia",
           kanban: "Kanban",
+          tasks: "Tareas",
         },
         appBar: {
           i18n: {
@@ -653,6 +680,11 @@ const messages = {
       },
       campaignsConfig: {
         title: "Configuraciones de Campañas",
+        intervals: "Intervalos",
+        messageInterval: "Intervalo entre mensajes (segundos)",
+        longerIntervalAfter: "Intervalo mayor después de (mensajes)",
+        longerInterval: "Intervalo mayor (segundos)",
+        addVariable: "Agregar variable",
       },
       queues: {
         title: "Colas y Chatbot",
@@ -661,6 +693,9 @@ const messages = {
           color: "Color",
           greeting: "Mensaje de bienvenida",
           actions: "Acciones",
+        },
+        toasts: {
+          deleted: "Cola eliminada exitosamente",
         },
         buttons: {
           add: "Agregar cola",
@@ -918,6 +953,12 @@ const messages = {
         },
         Plans: {
           title: "Planes",
+          public: "Público",
+          private: "Privado",
+          usersLimit: "Límite de usuarios",
+          connectionsLimit: "Límite de conexiones",
+          queuesLimit: "Límite de colas",
+          currencyCode: "Código de moneda (ISO 4217)",
         },
         Help: {
           title: "Ayuda",
@@ -927,6 +968,9 @@ const messages = {
         },
         PaymentGateways: {
           title: "Payment gateways",
+        },
+        i18nSettings: {
+          title: "Traducciones",
         },
         AIProvider: {
           title: "Proveedor de IA",
@@ -951,6 +995,8 @@ const messages = {
             resolve: "Resolver",
             reopen: "Reabrir",
             accept: "Aceptar",
+            call: "Llamar",
+            endCall: "Cortar",
           },
         },
       },
@@ -1017,7 +1063,7 @@ const messages = {
       presence: {
         unavailable: "Indisponible",
         available: "Disponible",
-        composing: "Componiendo",
+        composing: "Escribiendo",
         recording: "Grabando",
         paused: "Pausado",
       },
@@ -1051,6 +1097,11 @@ const messages = {
           disappearing:
             "Para actualizar el modo de desaparición predeterminado",
         },
+      },
+      frontendErrors: {
+        ERR_CONFIG_ERROR: "Error de configuración. Por favor, contacte al soporte.",
+        ERR_CLOCK_OUT_OF_SYNC: "Reloj fuera de sincronización. Por favor, verifique la configuración de fecha y hora de su dispositivo.",
+        ERR_BACKEND_UNREACHABLE: "Backend inalcanzable. Por favor, intente nuevamente más tarde.",
       },
       backendErrors: {
         ERR_FORBIDDEN: "No tienes permisos para acceder a este recurso.",
@@ -1090,6 +1141,14 @@ const messages = {
           "Este color ya está en uso, elija otro.",
         ERR_WAPP_GREETING_REQUIRED:
           "El mensaje de saludo es obligatorio cuando hay más de una cola.",
+      },
+      phoneCall: {
+        hangup: "Cortar",
+      },
+      wavoipModal: {
+        title: "Ingrese el token de su conexión en Wavoip",
+        instructions: "Accediendo a la siguiente dirección puede crear una cuenta con 50 llamadas gratuitas para prueba",
+        coupon: "¡Al contratar el servicio use el cupón TICKETZ para ganar un descuento!",
       },
       ticketz: {
         registration: {

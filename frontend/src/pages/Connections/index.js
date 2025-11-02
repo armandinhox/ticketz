@@ -16,6 +16,7 @@ import {
 	Tooltip,
 	Typography,
 	CircularProgress,
+    Checkbox,
 } from "@material-ui/core";
 import {
 	Edit,
@@ -47,6 +48,9 @@ import PrivacyModal from "../../components/PrivacyModal";
 import { i18n } from "../../translate/i18n";
 import { WhatsAppsContext } from "../../context/WhatsApp/WhatsAppsContext";
 import toastError from "../../errors/toastError";
+import wavoipIcon from "../../assets/wavoip.webp";
+import WavoipModal from "../../components/WavoipModal";
+import { wavoipAvailable } from "../../helpers/wavoipCallManager";
 
 const useStyles = makeStyles(theme => ({
 	mainPaper: {
@@ -118,6 +122,7 @@ const Connections = () => {
 	const [confirmModalInfo, setConfirmModalInfo] = useState(
 		confirmationModalInitialState
 	);
+  const [wavoipModalOpen, setWavoipModalOpen] = useState(false);
 
 	const handleStartWhatsAppSession = async whatsAppId => {
 		try {
@@ -191,7 +196,7 @@ const Connections = () => {
 		setConfirmModalOpen(true);
 	};
 
-	const handleSubmitConfirmationModal = async () => {
+	const handleSubmitConfirmationModal = async (checked) => {
 		if (confirmModalInfo.action === "disconnect") {
 			try {
 				await api.delete(`/whatsappsession/${confirmModalInfo.whatsAppId}`);
@@ -202,7 +207,9 @@ const Connections = () => {
 
 		if (confirmModalInfo.action === "delete") {
 			try {
-				await api.delete(`/whatsapp/${confirmModalInfo.whatsAppId}`);
+        await api.delete(`/whatsapp/${confirmModalInfo.whatsAppId}`, {
+          params: { closeTickets: checked }
+        });
 				toast.success(i18n.t("connections.toasts.deleted"));
 			} catch (err) {
 				toastError(err);
@@ -211,7 +218,18 @@ const Connections = () => {
 
 		setConfirmModalInfo(confirmationModalInitialState);
 	};
-  
+
+  // Add a handler to open the WavoipModal
+  const handleOpenWavoipModal = whatsApp => {
+    setSelectedWhatsApp(whatsApp);
+    setWavoipModalOpen(true);
+  };
+
+  const handleCloseWavoipModal = useCallback(() => {
+    setWavoipModalOpen(false);
+    setSelectedWhatsApp(null);
+  }, [setWavoipModalOpen, setSelectedWhatsApp]);
+
   const refreshWhatsApp = async whatsApp => {
     try {
       await api.get(`/whatsappsession/refresh/${whatsApp.id}`);
@@ -338,6 +356,7 @@ const Connections = () => {
 				open={confirmModalOpen}
 				onClose={setConfirmModalOpen}
 				onConfirm={handleSubmitConfirmationModal}
+        checkbox={confirmModalInfo.action === "delete" ? i18n.t("connections.confirmationModal.closeTickets") : undefined}
 			>
 				{confirmModalInfo.message}
 			</ConfirmationModal>
@@ -358,6 +377,11 @@ const Connections = () => {
 				onClose={handleClosePrivacyWhatsAppModal}
 				whatsAppId={!qrModalOpen && !whatsAppModalOpen && selectedWhatsApp?.id}
 			/>
+      <WavoipModal
+        open={wavoipModalOpen}
+        onClose={handleCloseWavoipModal}
+        whatsappId={selectedWhatsApp?.id}
+      />
 			<MainHeader>
 				<Title>{i18n.t("connections.title")}</Title>
 				<MainHeaderButtonsWrapper>
@@ -436,6 +460,19 @@ const Connections = () => {
 													</IconButton>
 												)}
 
+                        {whatsApp.channel === "whatsapp" && wavoipAvailable() && (
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenWavoipModal(whatsApp)}
+                          >
+                            <img
+                              src={wavoipIcon}
+                              alt="Wavoip"
+                              style={{ width: 20, height: 20 }}
+                            />
+                          </IconButton>
+                        )}
+                        
 												<IconButton
 													size="small"
 													onClick={e => {
