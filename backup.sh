@@ -26,4 +26,14 @@ find "$ORIGEM" -type f -mtime +90 | while read -r file; do
 done
 
 echo
-echo "✅ Backup concluído com sucesso!"
+echo "📦 Compactando backup em tar.gz..."
+cd /home/ticketz/
+tar --remove-files -czf "backup_$(date +%Y%m%d).tar.gz" "backup_$(date +%Y%m%d)/"
+
+if [ $? -eq 0 ]; then
+    echo "✅ Backup concluído e compactado com sucesso!"
+    echo "📁 Arquivo gerado: backup_$(date +%Y%m%d).tar.gz"
+else
+    echo "❌ Erro ao compactar o backup"
+    exit 1
+fi
