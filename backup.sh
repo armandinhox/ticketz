@@ -22,7 +22,9 @@ mkdir -p "$DESTINO_BASE"
 
 # Busca e move os arquivos
 find "$ORIGEM" -type f -mtime +90 | while read -r file; do
-    dest="$DESTINO_BASE/$(dirname "$file")"
+    # Obtém o caminho relativo removendo a origem
+    rel_path="${file#$ORIGEM/}"
+    dest="$DESTINO_BASE/media/$(dirname "$rel_path")"
     mkdir -p "$dest"
     echo "📦 Movendo: $file → $dest/"
     mv "$file" "$dest/"
