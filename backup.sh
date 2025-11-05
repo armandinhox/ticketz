@@ -5,9 +5,12 @@
 # Autor: Armando
 # =========================================
 
+# Data do backup (fixada no início)
+DATA_BACKUP=$(date +%Y%m%d)
+
 # Caminhos principais
 ORIGEM="/home/ticketz/backend_public/media"
-DESTINO_BASE="/home/ticketz/backup_$(date +%Y%m%d)"
+DESTINO_BASE="/home/ticketz/backup_${DATA_BACKUP}"
 
 echo "🔍 Iniciando backup dos arquivos com mais de 90 dias..."
 echo "Origem: $ORIGEM"
@@ -28,11 +31,11 @@ done
 echo
 echo "📦 Compactando backup em tar.gz..."
 cd /home/ticketz/
-tar --remove-files -czf "backup_$(date +%Y%m%d).tar.gz" "backup_$(date +%Y%m%d)/"
+tar --remove-files -czf "backup_${DATA_BACKUP}.tar.gz" "backup_${DATA_BACKUP}/"
 
 if [ $? -eq 0 ]; then
     echo "✅ Backup concluído e compactado com sucesso!"
-    echo "📁 Arquivo gerado: backup_$(date +%Y%m%d).tar.gz"
+    echo "📁 Arquivo gerado: backup_${DATA_BACKUP}.tar.gz"
 else
     echo "❌ Erro ao compactar o backup"
     exit 1
